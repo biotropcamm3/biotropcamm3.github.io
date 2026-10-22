@@ -14,6 +14,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Bibliotecas de QR Code (Leitura por Câmera e Geração de Etiquetas) -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <!-- Configuração Tailwind -->
     <script>
@@ -73,6 +76,31 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+        /* Centralização do QR Code gerado */
+        #qrcodeCanvas img, #qrcodeCanvas canvas {
+            margin: 0 auto;
+            border-radius: 8px;
+        }
+
+        /* Regra de Impressão Exclusiva para a Etiqueta QR Code */
+        @media print {
+            body * { visibility: hidden; }
+            #printableLabelArea, #printableLabelArea * { visibility: visible; }
+            #printableLabelArea {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: 100%;
+                max-width: 380px;
+                margin: 0;
+                padding: 16px;
+                border: 2px solid #000 !important;
+                background: #fff !important;
+                color: #000 !important;
+                box-shadow: none !important;
+            }
+        }
     </style>
 </head>
 <body class="text-stone-800 dark:text-stone-200 selection:bg-biotrop-200">
@@ -158,11 +186,17 @@
             <!-- ============================================== -->
             <div id="viewEstoque" class="block fade-in">
                 
-                <!-- Barra de Busca e Ações Primárias -->
+                <!-- Barra de Busca, Scanner QR e Ações Primárias -->
                 <div class="flex flex-col lg:flex-row gap-4 mb-6 items-center">
-                    <div class="w-full lg:flex-1 relative">
-                        <i class="ph ph-magnifying-glass absolute left-4 top-3.5 text-2xl text-biotrop-700 dark:text-stone-400"></i>
-                        <input type="text" id="searchInput" class="w-full pl-12 pr-4 py-3.5 border-4 border-transparent bg-white dark:bg-dark-card rounded-2xl font-medium text-stone-900 dark:text-white placeholder-stone-400 shadow-md focus:border-biotrop-400 outline-none transition-all" placeholder="Buscar peça, PN, aplicação ou local..." />
+                    <div class="w-full lg:flex-1 relative flex items-center">
+                        <i class="ph ph-magnifying-glass absolute left-4 text-2xl text-biotrop-700 dark:text-stone-400 pointer-events-none"></i>
+                        <input type="text" id="searchInput" class="w-full pl-12 pr-28 py-3.5 border-4 border-transparent bg-white dark:bg-dark-card rounded-2xl font-medium text-stone-900 dark:text-white placeholder-stone-400 shadow-md focus:border-biotrop-400 outline-none transition-all" placeholder="Buscar peça, código MAN, aplicação ou local..." />
+                        
+                        <!-- Botão Integrado de Leitura QR/MAN na Busca -->
+                        <button onclick="window.startQRScanner('global')" type="button" title="Escanear QR Code do MAN para Buscar ou Cadastrar" class="absolute right-2 px-3.5 py-2 bg-biotrop-100 dark:bg-biotrop-900/40 hover:bg-biotrop-600 hover:text-white text-biotrop-800 dark:text-biotrop-300 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm border border-biotrop-200 dark:border-biotrop-800">
+                            <i class="ph-bold ph-qr-code text-lg"></i>
+                            <span>Ler MAN</span>
+                        </button>
                     </div>
                     
                     <div class="flex gap-3 w-full lg:w-auto">
@@ -179,6 +213,15 @@
                             <i class="ph-bold ph-plus-circle text-2xl"></i> Nova Peça
                         </button>
                     </div>
+                </div>
+
+                <!-- Notificação Rápida de Leitura QR -->
+                <div id="qrToast" class="hidden mb-6 p-4 rounded-2xl bg-biotrop-700 text-white font-bold flex items-center justify-between shadow-lg fade-in">
+                    <div class="flex items-center gap-3">
+                        <i class="ph-fill ph-check-circle text-2xl text-biotrop-200"></i>
+                        <span id="qrToastText">Código MAN lido com sucesso!</span>
+                    </div>
+                    <button onclick="window.clearQRFilter()" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition">Mostrar Todos</button>
                 </div>
 
                 <!-- Filtros de Categoria -->
@@ -227,7 +270,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-stone-200 dark:border-dark-border shadow-sm flex items-center gap-4">
                         <div class="w-14 h-14 bg-biotrop-100 text-biotrop-700 rounded-2xl flex items-center justify-center text-3xl"><i class="ph-fill ph-cubes"></i></div>
-                        <div><p class="text-xs font-bold text-stone-500 uppercase">Total de SKUs</p><p id="kpiTotal" class="text-3xl font-black text-stone-800 dark:text-white">0</p></div>
+                        <div><p class="text-xs font-bold text-stone-500 uppercase">Total de SKUs (MAN)</p><p id="kpiTotal" class="text-3xl font-black text-stone-800 dark:text-white">0</p></div>
                     </div>
                     <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-red-200 dark:border-red-900/30 shadow-sm flex items-center gap-4">
                         <div class="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center text-3xl"><i class="ph-fill ph-warning-circle"></i></div>
@@ -262,6 +305,11 @@
                 </div>
             </div>
         </main>
+
+        <!-- Botão Flutuante Mobile para Escanear QR Rápido -->
+        <button onclick="window.startQRScanner('global')" class="md:hidden fixed bottom-6 right-6 w-16 h-16 bg-biotrop-700 text-white rounded-full flex items-center justify-center shadow-2xl border-4 border-white dark:border-stone-800 hover:bg-biotrop-600 active:scale-95 z-40" title="Escanear QR Code MAN">
+            <i class="ph-bold ph-qr-code text-3xl"></i>
+        </button>
     </div>
 
     <!-- =================================================================== -->
@@ -317,7 +365,7 @@
     </div>
 
     <!-- =================================================================== -->
-    <!-- MODAL 1: CADASTRAR/EDITAR COMPONENTE                                -->
+    <!-- MODAL 1: CADASTRAR/EDITAR COMPONENTE (COM LEITOR QR INTEGRADO)      -->
     <!-- =================================================================== -->
     <div id="addModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-stone-900/70 backdrop-blur-sm overflow-y-auto">
         <div class="bg-white dark:bg-dark-bg rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden modal-enter my-8 border border-stone-200 dark:border-dark-border">
@@ -330,14 +378,20 @@
                 <input type="hidden" id="formItemId">
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <!-- Código MAN com Botão de Scanner QR -->
+                    <div>
+                        <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Código MAN (PN) *</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="formCodigo" required placeholder="Ex: MAN00123" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-black text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all uppercase" />
+                            <button type="button" onclick="window.startQRScanner('form')" title="Ler QR Code do MAN pela câmera" class="px-4 bg-biotrop-100 dark:bg-biotrop-900/40 text-biotrop-700 dark:text-biotrop-300 hover:bg-biotrop-600 hover:text-white rounded-xl flex items-center justify-center transition border-2 border-biotrop-200 dark:border-biotrop-800 shrink-0">
+                                <i class="ph-bold ph-qr-code text-2xl"></i>
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="md:col-span-2">
                         <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Nome da Peça *</label>
                         <input type="text" id="formNome" required placeholder="Ex: Contator Tripolar" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-medium text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all" />
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Código (PN) *</label>
-                        <input type="text" id="formCodigo" required placeholder="Ex: CWB32" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-medium text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all uppercase" />
                     </div>
 
                     <div>
@@ -416,7 +470,83 @@
     </div>
 
     <!-- =================================================================== -->
-    <!-- LÓGICA CORE (FIREBASE, UI STATE, CRUD)                              -->
+    <!-- MODAL 3: LEITOR DE QR CODE / CÓDIGO MAN (CÂMERA)                    -->
+    <!-- =================================================================== -->
+    <div id="qrScannerModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-stone-900/80 backdrop-blur-sm">
+        <div class="bg-white dark:bg-dark-bg rounded-3xl shadow-2xl w-full max-w-md overflow-hidden modal-enter border border-stone-200 dark:border-dark-border">
+            <div class="p-5 text-white bg-biotrop-800 flex justify-between items-center">
+                <h3 class="text-lg font-black flex items-center gap-2">
+                    <i class="ph-bold ph-qr-code text-2xl"></i> Leitor de QR Code (MAN)
+                </h3>
+                <button onclick="window.stopQRScanner()" class="text-white/80 hover:text-white bg-white/20 p-2 rounded-full transition">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 text-center">
+                <p id="qrScannerSubtitle" class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-4">
+                    Aponte a câmera para o QR Code da peça
+                </p>
+                <!-- Visor da Câmera -->
+                <div id="qrReader" class="w-full rounded-2xl overflow-hidden border-4 border-biotrop-500 bg-black min-h-[260px]"></div>
+                
+                <div class="mt-4 p-3 bg-stone-100 dark:bg-dark-card rounded-xl text-left text-xs text-stone-500 dark:text-stone-400">
+                    <p class="font-bold text-stone-700 dark:text-stone-200 mb-1"><i class="ph-fill ph-lightbulb text-amber-500"></i> Dica de Cadastro Rápido:</p>
+                    <p>Se o código MAN lido ainda não existir no estoque, o formulário de cadastro abrirá automaticamente já preenchido!</p>
+                </div>
+
+                <button type="button" onclick="window.stopQRScanner()" class="w-full mt-5 py-3.5 font-bold text-stone-600 dark:text-stone-300 bg-stone-200 dark:bg-stone-800 hover:bg-stone-300 rounded-xl transition">
+                    Fechar Câmera
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL 4: ETIQUETA QR CODE DO ITEM (GERAÇÃO E IMPRESSÃO)             -->
+    <!-- =================================================================== -->
+    <div id="qrLabelModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-stone-900/80 backdrop-blur-sm">
+        <div class="bg-white dark:bg-dark-bg rounded-3xl shadow-2xl w-full max-w-md overflow-hidden modal-enter border border-stone-200 dark:border-dark-border p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-black text-stone-800 dark:text-white flex items-center gap-2">
+                    <i class="ph-fill ph-tag text-biotrop-600"></i> Etiqueta de Identificação
+                </h3>
+                <button onclick="window.closeQRLabelModal()" class="text-stone-400 hover:text-stone-700 dark:hover:text-white p-2 rounded-full">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Área Imprimível da Etiqueta -->
+            <div id="printableLabelArea" class="bg-white text-stone-900 border-2 border-stone-800 rounded-2xl p-5 text-center shadow-inner mb-6">
+                <div class="flex items-center justify-between border-b-2 border-stone-800 pb-2 mb-4">
+                    <span class="text-xs font-black tracking-widest uppercase">BIOTROP • CAMM 3</span>
+                    <span id="labelCategoria" class="text-[10px] font-bold bg-stone-200 px-2 py-0.5 rounded uppercase">MECÂNICA</span>
+                </div>
+                
+                <!-- Container onde o QR Code é renderizado -->
+                <div id="qrcodeCanvas" class="my-3 flex justify-center"></div>
+                
+                <p id="labelCodigoMan" class="text-2xl font-black tracking-wider uppercase text-stone-900 mt-2">MAN-0000</p>
+                <h4 id="labelNomeItem" class="text-base font-bold text-stone-800 leading-snug mt-1 line-clamp-2">Nome do Componente</h4>
+                <p id="labelSpecsItem" class="text-xs font-medium text-stone-500 mt-0.5">Especificação</p>
+                
+                <div class="mt-3 pt-2 border-t border-stone-300 flex items-center justify-center gap-1 text-xs font-black uppercase text-stone-700">
+                    <i class="ph-fill ph-map-pin"></i> <span id="labelLocalItem">Corredor A > Estante 1</span>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="window.downloadQRImage()" class="flex-1 py-3.5 font-bold text-biotrop-700 bg-biotrop-100 hover:bg-biotrop-200 rounded-xl transition flex items-center justify-center gap-2">
+                    <i class="ph-bold ph-download-simple text-lg"></i> Baixar PNG
+                </button>
+                <button type="button" onclick="window.print()" class="flex-1 py-3.5 font-black text-white bg-biotrop-600 hover:bg-biotrop-700 rounded-xl transition shadow-md flex items-center justify-center gap-2">
+                    <i class="ph-bold ph-printer text-lg"></i> Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- LÓGICA CORE (FIREBASE, UI STATE, CRUD & QR CODE)                    -->
     <!-- =================================================================== -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -455,6 +585,8 @@
         };
 
         let itemToDeleteId = null;
+        let html5QrCode = null;
+        let currentLabelCode = '';
 
         // 1. AUTENTICAÇÃO E INICIALIZAÇÃO
         onAuthStateChanged(auth, (user) => {
@@ -605,7 +737,7 @@
                                 <div class="w-12 h-12 rounded-xl flex items-center justify-center ${catData.color}"><i class="ph-fill ${catData.icon} text-2xl"></i></div>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2 mb-0.5"><h3 class="text-lg font-black text-stone-800 dark:text-white truncate">${item.nome}</h3> ${appVisual}</div>
-                                    <p class="text-xs text-stone-500 dark:text-stone-400 font-bold uppercase truncate">PN: ${item.codigo||'-'} • LOC: <span class="text-amber-600 dark:text-amber-400">${item.localizacao}</span></p>
+                                    <p class="text-xs text-stone-500 dark:text-stone-400 font-bold uppercase truncate">MAN: ${item.codigo||'-'} • LOC: <span class="text-amber-600 dark:text-amber-400">${item.localizacao}</span></p>
                                 </div>
                             </div>
                             <div class="flex items-center justify-between w-full md:w-auto gap-4 mt-3 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-stone-100 dark:border-dark-border">
@@ -613,9 +745,10 @@
                                     <p class="text-2xl font-black ${isLow ? 'text-red-600' : 'text-stone-800 dark:text-white'} leading-none">${qty} <span class="text-xs text-stone-400">${item.unidade||'un'}</span></p>
                                 </div>
                                 <div class="flex gap-1">
-                                    <button onclick="window.openEditModal('${item.id}')" class="w-10 h-10 bg-sky-50 dark:bg-sky-900/20 text-sky-600 rounded-xl flex items-center justify-center hover:bg-sky-500 hover:text-white transition"><i class="ph-bold ph-pencil-simple text-xl"></i></button>
-                                    <button onclick="window.updateQuantity('${item.id}', -1)" class="w-10 h-10 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="ph-bold ph-minus text-xl"></i></button>
-                                    <button onclick="window.updateQuantity('${item.id}', 1)" class="w-10 h-10 bg-biotrop-50 dark:bg-biotrop-900/20 text-biotrop-700 rounded-xl flex items-center justify-center hover:bg-biotrop-600 hover:text-white transition"><i class="ph-bold ph-plus text-xl"></i></button>
+                                    <button onclick="window.openQRLabelModal('${item.id}')" title="Gerar Etiqueta QR Code" class="w-10 h-10 bg-purple-50 dark:bg-purple-900/20 text-purple-600 rounded-xl flex items-center justify-center hover:bg-purple-600 hover:text-white transition"><i class="ph-bold ph-qr-code text-xl"></i></button>
+                                    <button onclick="window.openEditModal('${item.id}')" title="Editar" class="w-10 h-10 bg-sky-50 dark:bg-sky-900/20 text-sky-600 rounded-xl flex items-center justify-center hover:bg-sky-500 hover:text-white transition"><i class="ph-bold ph-pencil-simple text-xl"></i></button>
+                                    <button onclick="window.updateQuantity('${item.id}', -1)" title="Dar Baixa (-1)" class="w-10 h-10 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="ph-bold ph-minus text-xl"></i></button>
+                                    <button onclick="window.updateQuantity('${item.id}', 1)" title="Adicionar (+1)" class="w-10 h-10 bg-biotrop-50 dark:bg-biotrop-900/20 text-biotrop-700 rounded-xl flex items-center justify-center hover:bg-biotrop-600 hover:text-white transition"><i class="ph-bold ph-plus text-xl"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -629,8 +762,9 @@
                         <div class="flex gap-4 mb-3">
                             <div class="w-16 h-16 rounded-2xl flex items-center justify-center ${catData.color}"><i class="ph-fill ${catData.icon} text-3xl"></i></div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-[10px] font-black text-stone-500 dark:text-stone-400 uppercase tracking-widest truncate">PN: ${item.codigo||'-'}</p>
+                                <p class="text-[10px] font-black text-stone-500 dark:text-stone-400 uppercase tracking-widest truncate">MAN: ${item.codigo||'-'}</p>
                                 <h3 class="text-xl font-black text-stone-800 dark:text-white leading-tight mb-1 line-clamp-2">${item.nome}</h3>
+                                <p class="text-xs font-medium text-stone-500 dark:text-stone-400 truncate mb-1">${item.especificacao || 'Sem especificação'}</p>
                                 ${appVisual}
                             </div>
                         </div>
@@ -647,10 +781,11 @@
                                 <p class="text-4xl font-black ${isLow ? 'text-red-600' : 'text-stone-800 dark:text-white'}">${qty} <span class="text-sm font-medium text-stone-400">${item.unidade||'un'}</span></p>
                             </div>
                             <div class="flex gap-1.5 flex-wrap justify-end">
-                                <button onclick="window.openDeleteModal('${item.id}', '${item.nome.replace(/'/g, "\\'")}')" class="w-10 h-10 md:w-12 md:h-12 bg-stone-100 dark:bg-stone-800 text-stone-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="ph-bold ph-trash text-xl"></i></button>
-                                <button onclick="window.openEditModal('${item.id}')" class="w-10 h-10 md:w-12 md:h-12 bg-sky-50 dark:bg-sky-900/20 text-sky-600 rounded-xl flex items-center justify-center hover:bg-sky-500 hover:text-white transition"><i class="ph-bold ph-pencil-simple text-xl"></i></button>
-                                <button onclick="window.updateQuantity('${item.id}', -1)" class="w-10 h-10 md:w-12 md:h-12 bg-red-100 dark:bg-red-900/20 text-red-600 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="ph-bold ph-minus text-xl"></i></button>
-                                <button onclick="window.updateQuantity('${item.id}', 1)" class="w-10 h-10 md:w-12 md:h-12 bg-biotrop-100 dark:bg-biotrop-900/20 text-biotrop-700 rounded-xl flex items-center justify-center hover:bg-biotrop-600 hover:text-white transition"><i class="ph-bold ph-plus text-xl"></i></button>
+                                <button onclick="window.openQRLabelModal('${item.id}')" title="Etiqueta QR Code do MAN" class="w-10 h-10 md:w-11 md:h-11 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center hover:bg-purple-600 hover:text-white transition"><i class="ph-bold ph-qr-code text-xl"></i></button>
+                                <button onclick="window.openDeleteModal('${item.id}', '${item.nome.replace(/'/g, "\\'")}')" title="Excluir" class="w-10 h-10 md:w-11 md:h-11 bg-stone-100 dark:bg-stone-800 text-stone-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="ph-bold ph-trash text-xl"></i></button>
+                                <button onclick="window.openEditModal('${item.id}')" title="Editar" class="w-10 h-10 md:w-11 md:h-11 bg-sky-50 dark:bg-sky-900/20 text-sky-600 rounded-xl flex items-center justify-center hover:bg-sky-500 hover:text-white transition"><i class="ph-bold ph-pencil-simple text-xl"></i></button>
+                                <button onclick="window.updateQuantity('${item.id}', -1)" title="Subtrair 1" class="w-10 h-10 md:w-11 md:h-11 bg-red-100 dark:bg-red-900/20 text-red-600 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="ph-bold ph-minus text-xl"></i></button>
+                                <button onclick="window.updateQuantity('${item.id}', 1)" title="Adicionar 1" class="w-10 h-10 md:w-11 md:h-11 bg-biotrop-100 dark:bg-biotrop-900/20 text-biotrop-700 rounded-xl flex items-center justify-center hover:bg-biotrop-600 hover:text-white transition"><i class="ph-bold ph-plus text-xl"></i></button>
                             </div>
                         </div>
                     </div>
@@ -658,7 +793,157 @@
             }).join('');
         }
 
-        // 3. CRUD COM LOG DE AUDITORIA
+        // 3. SISTEMA DE QR CODE (LEITURA POR CÂMERA E ETIQUETAS BASEADAS NO MAN)
+        window.startQRScanner = (mode = 'global') => {
+            const modal = document.getElementById('qrScannerModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            const subtitle = document.getElementById('qrScannerSubtitle');
+            subtitle.textContent = mode === 'form' 
+                ? "Escaneie o QR Code para preencher o Código MAN" 
+                : "Escaneie o QR Code para buscar ou cadastrar a peça";
+
+            if (html5QrCode) {
+                html5QrCode.clear();
+            }
+            html5QrCode = new Html5Qrcode("qrReader");
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 230, height: 230 } },
+                (decodedText) => {
+                    window.stopQRScanner();
+                    handleScannedMAN(decodedText.trim(), mode);
+                },
+                (errorMessage) => { /* Ignora frames sem QR Code */ }
+            ).catch((err) => {
+                console.error("Erro ao iniciar câmera:", err);
+                alert("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
+                window.stopQRScanner();
+            });
+        };
+
+        window.stopQRScanner = () => {
+            const modal = document.getElementById('qrScannerModal');
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }).catch(() => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                });
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        };
+
+        function handleScannedMAN(rawText, mode) {
+            // Suporta tanto QR Code puro (ex: "MAN00123") quanto QR Code estruturado separado por '|'
+            // Formato estruturado opcional: MAN|Nome|Categoria|Especificacao|Localizacao
+            const parts = rawText.split('|').map(p => p.trim());
+            const manCode = parts[0].toUpperCase();
+
+            // Procura se já existe um item com esse código MAN no estoque
+            const existingItem = state.inventory.find(
+                i => (i.codigo || '').toUpperCase() === manCode
+            );
+
+            if (mode === 'form') {
+                // Se escaneou de dentro do modal de cadastro/edição
+                if (existingItem && !document.getElementById('formItemId').value) {
+                    alert(`O código ${manCode} já está cadastrado como "${existingItem.nome}". Carregando dados para edição!`);
+                    window.openEditModal(existingItem.id);
+                    return;
+                }
+                document.getElementById('formCodigo').value = manCode;
+                if (parts[1] && !document.getElementById('formNome').value) document.getElementById('formNome').value = parts[1];
+                if (parts[2] && !document.getElementById('formCategoria').value) document.getElementById('formCategoria').value = parts[2];
+                if (parts[3] && !document.getElementById('formSpecs').value) document.getElementById('formSpecs').value = parts[3];
+                if (parts[4] && !document.getElementById('formLocal').value) document.getElementById('formLocal').value = parts[4];
+                document.getElementById('formNome').focus();
+                return;
+            }
+
+            // Modo Global (botão na barra de busca ou botão flutuante)
+            if (existingItem) {
+                // Item já existe -> Filtra imediatamente na tela para baixa rápida
+                document.getElementById('searchInput').value = manCode;
+                state.searchTerm = manCode;
+                renderInventory();
+
+                const toast = document.getElementById('qrToast');
+                document.getElementById('qrToastText').textContent = `MAN encontrado: ${existingItem.nome} (${existingItem.codigo})`;
+                toast.classList.remove('hidden');
+            } else {
+                // Item NÃO existe -> Abre o modal de Cadastro já preenchido com o MAN lido!
+                window.openAddModal();
+                document.getElementById('formCodigo').value = manCode;
+                if (parts[1]) document.getElementById('formNome').value = parts[1];
+                if (parts[2]) document.getElementById('formCategoria').value = parts[2];
+                if (parts[3]) document.getElementById('formSpecs').value = parts[3];
+                if (parts[4]) document.getElementById('formLocal').value = parts[4];
+                setTimeout(() => document.getElementById('formNome').focus(), 150);
+            }
+        }
+
+        window.clearQRFilter = () => {
+            document.getElementById('searchInput').value = '';
+            state.searchTerm = '';
+            document.getElementById('qrToast').classList.add('hidden');
+            renderInventory();
+        };
+
+        // Geração de Etiqueta QR Code baseada no MAN
+        window.openQRLabelModal = (id) => {
+            const item = state.inventory.find(i => i.id === id);
+            if (!item) return;
+
+            const manCode = (item.codigo || item.id).toUpperCase();
+            currentLabelCode = manCode;
+
+            document.getElementById('labelCategoria').textContent = item.categoria || 'GERAL';
+            document.getElementById('labelCodigoMan').textContent = manCode;
+            document.getElementById('labelNomeItem').textContent = item.nome;
+            document.getElementById('labelSpecsItem').textContent = item.especificacao || 'Sem especificação adicional';
+            document.getElementById('labelLocalItem').textContent = item.localizacao || '-';
+
+            const qrContainer = document.getElementById('qrcodeCanvas');
+            qrContainer.innerHTML = '';
+
+            new QRCode(qrContainer, {
+                text: manCode,
+                width: 170,
+                height: 170,
+                colorDark: "#14532d",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            const modal = document.getElementById('qrLabelModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeQRLabelModal = () => {
+            const modal = document.getElementById('qrLabelModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
+        window.downloadQRImage = () => {
+            const img = document.querySelector('#qrcodeCanvas img') || document.querySelector('#qrcodeCanvas canvas');
+            if (!img) return;
+            const link = document.createElement('a');
+            link.download = `QR_${currentLabelCode}.png`;
+            link.href = img.src || img.toDataURL("image/png");
+            link.click();
+        };
+
+        // 4. CRUD COM LOG DE AUDITORIA
         window.updateQuantity = async (id, change) => {
             const item = state.inventory.find(i => i.id === id);
             if (!item) return;
@@ -677,7 +962,9 @@
         function setupEventListeners() {
             // Busca Reativa
             document.getElementById('searchInput').addEventListener('input', (e) => {
-                state.searchTerm = e.target.value; renderInventory();
+                state.searchTerm = e.target.value;
+                if (!e.target.value) document.getElementById('qrToast').classList.add('hidden');
+                renderInventory();
             });
 
             // Submit Formulario (Cria/Edita)
@@ -690,7 +977,7 @@
                 const id = document.getElementById('formItemId').value;
                 const dados = {
                     nome: document.getElementById('formNome').value.trim(),
-                    codigo: document.getElementById('formCodigo').value.trim(),
+                    codigo: document.getElementById('formCodigo').value.trim().toUpperCase(),
                     categoria: document.getElementById('formCategoria').value,
                     especificacao: document.getElementById('formSpecs').value.trim(),
                     aplicacao: document.getElementById('formAplicacao').value.trim() || '-',
@@ -742,7 +1029,7 @@
                     for (const row of itemsExcel) {
                         try {
                             await addDoc(collection(db, 'estoque'), {
-                                nome: row['Nome'] || row['NOME'] || 'Sem nome', codigo: row['Código'] || row['Codigo'] || row['SKU'] || row['PN'] || '-', categoria: row['Categoria'] || 'Mecânica', especificacao: row['Especificação'] || row['Especificacao'] || '', aplicacao: row['Aplicação'] || row['Aplicacao'] || '-', localizacao: row['Localização'] || row['Localizacao'] || '-', quantidade: parseInt(row['Quantidade']) || parseInt(row['Qtd Atual']) || 0, quantidadeMinima: parseInt(row['Qtd Mínima']) || parseInt(row['Minima']) || 0, unidade: row['Unidade'] || row['UND'] || 'un'
+                                nome: row['Nome'] || row['NOME'] || 'Sem nome', codigo: String(row['MAN'] || row['Código'] || row['Codigo'] || row['SKU'] || row['PN'] || '-').toUpperCase(), categoria: row['Categoria'] || 'Mecânica', especificacao: row['Especificação'] || row['Especificacao'] || '', aplicacao: row['Aplicação'] || row['Aplicacao'] || '-', localizacao: row['Localização'] || row['Localizacao'] || '-', quantidade: parseInt(row['Quantidade']) || parseInt(row['Qtd Atual']) || 0, quantidadeMinima: parseInt(row['Qtd Mínima']) || parseInt(row['Minima']) || 0, unidade: row['Unidade'] || row['UND'] || 'un'
                             });
                         } catch(err) { console.error("Linha ignorada"); }
                     }
@@ -752,18 +1039,18 @@
             });
         }
 
-        // 4. EXPORTAÇÃO PARA ERP (.XLSX)
+        // 5. EXPORTAÇÃO PARA ERP (.XLSX)
         window.exportToExcel = () => {
             if(state.inventory.length === 0) return alert("Não há dados.");
             const dados = state.inventory.map(item => ({
-                "CÓDIGO (PN)": item.codigo || "-", "DESCRIÇÃO": item.nome, "ESPECIFICAÇÃO": item.especificacao || "-", "CATEGORIA": item.categoria, "APLICAÇÃO": item.aplicacao, "LOCALIZAÇÃO": item.localizacao, "QTD. ATUAL": item.quantidade, "UNIDADE": item.unidade || "un", "QTD. MÍNIMA": item.quantidadeMinima, "STATUS": parseInt(item.quantidade) <= parseInt(item.quantidadeMinima) ? "COMPRAR" : "OK"
+                "CÓDIGO (MAN/PN)": item.codigo || "-", "DESCRIÇÃO": item.nome, "ESPECIFICAÇÃO": item.especificacao || "-", "CATEGORIA": item.categoria, "APLICAÇÃO": item.aplicacao, "LOCALIZAÇÃO": item.localizacao, "QTD. ATUAL": item.quantidade, "UNIDADE": item.unidade || "un", "QTD. MÍNIMA": item.quantidadeMinima, "STATUS": parseInt(item.quantidade) <= parseInt(item.quantidadeMinima) ? "COMPRAR" : "OK"
             }));
             const ws = XLSX.utils.json_to_sheet(dados); const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventario_CAMM3");
             XLSX.writeFile(wb, `Relatorio_Estoque_Biotrop_${new Date().toISOString().split('T')[0]}.xlsx`);
         };
 
-        // 5. FUNÇÕES DE JANELA (UI/UX)
+        // 6. FUNÇÕES DE JANELA (UI/UX)
         window.switchTab = (tab) => {
             document.getElementById('viewEstoque').classList.toggle('hidden', tab !== 'estoque');
             document.getElementById('viewDashboard').classList.toggle('hidden', tab !== 'dashboard');
@@ -797,7 +1084,7 @@
             document.getElementById('addItemForm').reset(); document.getElementById('formItemId').value = "";
             document.getElementById('modalTitleText').innerHTML = '<i class="ph ph-cube"></i> Cadastrar Componente';
             document.getElementById('addModal').classList.remove('hidden'); document.getElementById('addModal').classList.add('flex');
-            setTimeout(() => document.getElementById('formNome').focus(), 100);
+            setTimeout(() => document.getElementById('formCodigo').focus(), 100);
         };
         window.openEditModal = (id) => {
             const item = state.inventory.find(i => i.id === id); if (!item) return;
