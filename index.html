@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biotrop CAMM 3 - Gestão Profissional de Estoque</title>
+    <title>Biotrop - Portal de Controle de Estoque (Manutenção & Produção)</title>
     
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
@@ -14,7 +14,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- Bibliotecas de QR Code (Leitura por Câmera e Geração de Etiquetas) -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -43,7 +42,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         
-        /* Variáveis Globais de Acessibilidade */
         :root {
             --app-bg-color: #fafaf9;
             --app-font-size: 16px;
@@ -58,10 +56,9 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* Animações e Utilitários */
         .modal-enter { animation: fadeInScale 0.2s ease-out forwards; }
         .slide-in { animation: slideIn 0.3s ease-out forwards; }
-        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        .fade-in { animation: fadeIn 0.25s ease-out forwards; }
         
         @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
@@ -71,19 +68,16 @@
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .dark ::-webkit-scrollbar-thumb { background: #475569; }
 
-        /* Centralização do QR Code gerado */
         #qrcodeCanvas img, #qrcodeCanvas canvas {
             margin: 0 auto;
             border-radius: 8px;
         }
 
-        /* Regra de Impressão Exclusiva para a Etiqueta QR Code */
         @media print {
             body * { visibility: hidden; }
             #printableLabelArea, #printableLabelArea * { visibility: visible; }
@@ -92,7 +86,7 @@
                 left: 0;
                 top: 0;
                 width: 100%;
-                max-width: 380px;
+                max-width: 340px;
                 margin: 0;
                 padding: 16px;
                 border: 2px solid #000 !important;
@@ -106,128 +100,181 @@
 <body class="text-stone-800 dark:text-stone-200 selection:bg-biotrop-200">
 
     <!-- =================================================================== -->
-    <!-- TELA DE LOGIN (Autenticação Corporativa)                            -->
+    <!-- TELA DE LOGIN COM SELEÇÃO DE ÁREA (MANUTENÇÃO vs PRODUÇÃO)          -->
     <!-- =================================================================== -->
-    <div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-biotrop-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] p-4">
-        <div class="bg-white dark:bg-dark-card w-full max-w-md rounded-3xl shadow-2xl p-8 border-t-8 border-biotrop-500 fade-in">
-            <div class="flex justify-center mb-6">
-                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQl4jA6jDbDnf1N0eiR1xPKkhwMrsDvveVOiMm0lcsZow&s=10" alt="Logo" class="h-16">
+    <div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-biotrop-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] p-4 overflow-y-auto">
+        <div id="loginCard" class="bg-white dark:bg-dark-card w-full max-w-lg rounded-3xl shadow-2xl p-6 sm:p-8 border-t-8 border-biotrop-500 fade-in my-8 transition-all">
+            <div class="flex justify-center mb-3">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQl4jA6jDbDnf1N0eiR1xPKkhwMrsDvveVOiMm0lcsZow&s=10" alt="Logo Biotrop" class="h-12">
             </div>
-            <h2 class="text-2xl font-black text-center text-stone-800 dark:text-white mb-2">Acesso Restrito</h2>
-            <p class="text-center text-stone-500 dark:text-stone-400 mb-8 font-medium">CAMM 3 - Portal de Manutenção</p>
+            <h2 class="text-2xl font-black text-center text-stone-800 dark:text-white">Portal de Estoque Biotrop</h2>
+            <p class="text-center text-stone-500 dark:text-stone-400 mb-5 text-xs font-bold uppercase tracking-wider">1. Escolha o Setor antes de entrar</p>
             
-            <form id="loginForm" class="space-y-5">
-                <div>
-                    <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">E-mail Corporativo</label>
-                    <input type="email" id="loginEmail" required placeholder="ex: usuario@biotrop.com.br" class="w-full p-4 bg-stone-50 dark:bg-dark-bg border-2 border-stone-200 dark:border-dark-border rounded-xl font-medium outline-none focus:border-biotrop-500 transition-all dark:text-white" />
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Senha</label>
-                    <input type="password" id="loginPwd" required placeholder="••••••••" class="w-full p-4 bg-stone-50 dark:bg-dark-bg border-2 border-stone-200 dark:border-dark-border rounded-xl font-medium outline-none focus:border-biotrop-500 transition-all dark:text-white" />
-                </div>
-                <button type="submit" id="btnLogin" class="w-full py-4 font-black text-white bg-biotrop-700 hover:bg-biotrop-600 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-4">
-                    <i class="ph-bold ph-sign-in"></i> Entrar
+            <!-- SELETOR DE SETOR (MANUTENÇÃO vs PRODUÇÃO) -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <button type="button" id="cardSectorManut" onclick="window.selectSector('manutencao')" class="p-4 rounded-2xl border-2 border-biotrop-600 bg-biotrop-50 dark:bg-biotrop-900/30 flex flex-col items-center text-center gap-1.5 transition-all shadow-md transform scale-[1.02]">
+                    <div class="w-12 h-12 rounded-2xl bg-biotrop-600 text-white flex items-center justify-center shadow">
+                        <i class="ph-fill ph-wrench text-2xl"></i>
+                    </div>
+                    <span class="font-black text-sm text-stone-800 dark:text-white tracking-wide">MANUTENÇÃO</span>
+                    <span class="text-[10px] font-bold text-biotrop-700 dark:text-biotrop-300">Oficina CAMM 3 & Peças</span>
                 </button>
-                <p id="loginError" class="text-red-500 text-sm font-bold text-center mt-2 hidden"></p>
+
+                <button type="button" id="cardSectorProd" onclick="window.selectSector('producao')" class="p-4 rounded-2xl border-2 border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-dark-bg hover:border-teal-500 flex flex-col items-center text-center gap-1.5 transition-all opacity-80 hover:opacity-100">
+                    <div class="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow">
+                        <i class="ph-fill ph-flask text-2xl"></i>
+                    </div>
+                    <span class="font-black text-sm text-stone-800 dark:text-white tracking-wide">PRODUÇÃO</span>
+                    <span class="text-[10px] font-bold text-teal-700 dark:text-teal-300">Insumos, Embalagens & EPIs</span>
+                </button>
+            </div>
+
+            <!-- Alternador Entrar / Criar Conta -->
+            <div class="flex bg-stone-100 dark:bg-dark-bg p-1.5 rounded-2xl mb-5">
+                <button type="button" id="tabBtnLogin" onclick="window.setAuthMode('login')" class="flex-1 py-2.5 rounded-xl font-black text-sm bg-white dark:bg-dark-card text-biotrop-700 dark:text-biotrop-400 shadow transition-all">
+                    Entrar
+                </button>
+                <button type="button" id="tabBtnRegister" onclick="window.setAuthMode('register')" class="flex-1 py-2.5 rounded-xl font-bold text-sm text-stone-500 hover:text-stone-800 dark:hover:text-white transition-all">
+                    Criar Conta
+                </button>
+            </div>
+
+            <form id="authForm" class="space-y-4">
+                <div id="registerNameField" class="hidden">
+                    <label class="block text-xs font-bold uppercase text-stone-600 dark:text-stone-300 mb-1">Seu Nome / Apelido</label>
+                    <input type="text" id="authName" placeholder="Ex: Maria Fernanda" class="w-full p-3.5 bg-stone-50 dark:bg-dark-bg border-2 border-stone-200 dark:border-dark-border rounded-xl font-medium outline-none focus:border-biotrop-500 transition-all dark:text-white" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-stone-600 dark:text-stone-300 mb-1">E-mail Corporativo</label>
+                    <input type="email" id="authEmail" required placeholder="ex: usuario@biotrop.com.br" class="w-full p-3.5 bg-stone-50 dark:bg-dark-bg border-2 border-stone-200 dark:border-dark-border rounded-xl font-medium outline-none focus:border-biotrop-500 transition-all dark:text-white" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-stone-600 dark:text-stone-300 mb-1">Senha</label>
+                    <input type="password" id="authPwd" required minlength="6" placeholder="Mínimo 6 caracteres" class="w-full p-3.5 bg-stone-50 dark:bg-dark-bg border-2 border-stone-200 dark:border-dark-border rounded-xl font-medium outline-none focus:border-biotrop-500 transition-all dark:text-white" />
+                </div>
+
+                <div id="registerConfirmField" class="hidden">
+                    <label class="block text-xs font-bold uppercase text-stone-600 dark:text-stone-300 mb-1">Confirmar Senha</label>
+                    <input type="password" id="authPwdConfirm" placeholder="Repita a senha" class="w-full p-3.5 bg-stone-50 dark:bg-dark-bg border-2 border-stone-200 dark:border-dark-border rounded-xl font-medium outline-none focus:border-biotrop-500 transition-all dark:text-white" />
+                </div>
+
+                <button type="submit" id="btnAuthSubmit" class="w-full py-4 font-black text-white bg-biotrop-700 hover:bg-biotrop-600 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-2">
+                    <i class="ph-bold ph-sign-in text-xl"></i> Entrar na Manutenção
+                </button>
+                <p id="authFeedback" class="text-red-500 text-xs font-bold text-center mt-2 hidden p-2.5 bg-red-50 dark:bg-red-900/20 rounded-xl"></p>
             </form>
         </div>
     </div>
 
     <!-- =================================================================== -->
-    <!-- APLICAÇÃO PRINCIPAL (Visível após Login)                            -->
+    <!-- APLICAÇÃO PRINCIPAL                                                 -->
     <!-- =================================================================== -->
     <div id="mainApp" class="hidden fade-in min-h-screen flex flex-col">
         
-        <!-- CABEÇALHO -->
-        <header class="bg-biotrop-800 text-white shadow-lg sticky top-0 z-30">
-            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4">
+        <!-- CABEÇALHO DINÂMICO POR SETOR -->
+        <header id="mainHeader" class="bg-biotrop-800 text-white shadow-lg sticky top-0 z-30 transition-colors duration-300">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
                 
-                <!-- Logo -->
+                <!-- Logo, Badge do Setor e Alternador Rápido -->
                 <div class="flex items-center justify-between w-full md:w-auto">
                     <div class="flex items-center gap-3">
                         <div class="bg-white p-2 rounded-xl shadow-sm"><img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQl4jA6jDbDnf1N0eiR1xPKkhwMrsDvveVOiMm0lcsZow&s=10" class="h-6"></div>
-                        <div><h1 class="text-xl font-black leading-tight tracking-wide">BIOTROP</h1></div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h1 class="text-xl font-black leading-tight tracking-wide">BIOTROP</h1>
+                                <!-- Botão para Alternar entre Manutenção e Produção sem Deslogar -->
+                                <button onclick="window.toggleSectorInsideApp()" id="headerSectorBadge" title="Clique para alternar entre Manutenção e Produção" class="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-400 text-stone-900 flex items-center gap-1 shadow hover:scale-105 transition">
+                                    <i class="ph-fill ph-wrench"></i> MANUTENÇÃO <i class="ph-bold ph-arrows-left-right ml-0.5"></i>
+                                </button>
+                            </div>
+                            <p id="headerSubtitle" class="text-[10px] text-white/80 font-bold uppercase tracking-widest">CAMM 3 • Oficina de Manutenção</p>
+                        </div>
                     </div>
-                    <!-- Menu Mobile Btn -->
-                    <button onclick="window.openSettingsMenu()" aria-label="Menu" class="md:hidden p-2 bg-biotrop-700 rounded-lg hover:bg-biotrop-600 transition">
-                        <i class="ph-bold ph-list text-2xl"></i>
-                    </button>
+                    <div class="flex items-center gap-2 md:hidden">
+                        <button onclick="window.startQRScanner('quick')" class="p-2 bg-amber-400 text-stone-900 rounded-lg font-black flex items-center gap-1 shadow">
+                            <i class="ph-bold ph-qr-code text-xl"></i>
+                        </button>
+                        <button onclick="window.openSettingsMenu()" aria-label="Menu" class="p-2 bg-black/20 rounded-lg hover:bg-black/30 transition">
+                            <i class="ph-bold ph-list text-2xl"></i>
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Abas de Navegação -->
-                <div class="flex bg-biotrop-900/50 p-1 rounded-xl w-full md:w-auto overflow-hidden">
-                    <button onclick="window.switchTab('estoque')" id="tabEstoque" class="flex-1 md:px-6 py-2 rounded-lg bg-biotrop-700 font-bold text-sm shadow flex items-center justify-center gap-2 transition-all">
-                        <i class="ph-bold ph-package"></i> Operação (Estoque)
+                <div class="flex bg-black/25 p-1 rounded-xl w-full md:w-auto overflow-x-auto">
+                    <button onclick="window.switchTab('estoque')" id="tabEstoque" class="flex-1 md:px-5 py-2 rounded-lg bg-white/20 font-bold text-xs md:text-sm shadow flex items-center justify-center gap-1.5 whitespace-nowrap transition-all">
+                        <i class="ph-bold ph-package text-lg"></i> Estoque
                     </button>
-                    <button onclick="window.switchTab('dashboard')" id="tabDashboard" class="flex-1 md:px-6 py-2 rounded-lg text-biotrop-100 hover:bg-biotrop-700/50 font-bold text-sm flex items-center justify-center gap-2 transition-all">
-                        <i class="ph-bold ph-chart-bar"></i> Gestão (Dashboard)
+                    <button onclick="window.switchTab('dynamics')" id="tabDynamics" class="flex-1 md:px-5 py-2 rounded-lg text-white/80 hover:bg-white/10 font-bold text-xs md:text-sm flex items-center justify-center gap-1.5 whitespace-nowrap transition-all">
+                        <i class="ph-bold ph-link text-lg"></i> <span id="tabDynamicsLabel">Vincular MANs</span>
+                        <span id="badgePendingMan" class="hidden bg-amber-400 text-stone-900 text-[10px] font-black px-1.5 py-0.2 rounded-full">0</span>
+                    </button>
+                    <button onclick="window.switchTab('dashboard')" id="tabDashboard" class="flex-1 md:px-5 py-2 rounded-lg text-white/80 hover:bg-white/10 font-bold text-xs md:text-sm flex items-center justify-center gap-1.5 whitespace-nowrap transition-all">
+                        <i class="ph-bold ph-chart-bar text-lg"></i> Gestão
                     </button>
                 </div>
 
-                <!-- Ações do Cabeçalho -->
-                <div class="hidden md:flex items-center gap-3">
-                    <button onclick="window.openSettingsMenu()" aria-label="Acessibilidade" class="w-10 h-10 bg-biotrop-700 hover:bg-biotrop-600 rounded-xl flex items-center justify-center transition border border-biotrop-600">
+                <!-- Ações do Cabeçalho Desktop -->
+                <div class="hidden md:flex items-center gap-2.5">
+                    <button onclick="window.openSettingsMenu()" title="Acessibilidade e Preferências" class="w-10 h-10 bg-black/20 hover:bg-black/30 rounded-xl flex items-center justify-center transition border border-white/15">
                         <i class="ph-fill ph-gear-six text-xl"></i>
                     </button>
-                    <div class="w-px h-8 bg-biotrop-700 mx-2"></div>
-                    <span id="userEmailDisplay" class="text-xs font-bold text-biotrop-200"></span>
-                    <button onclick="window.logout()" class="p-2 bg-red-500/20 text-red-300 hover:bg-red-500 hover:text-white rounded-lg transition" title="Sair do Sistema">
+                    <div class="w-px h-7 bg-white/20 mx-1"></div>
+                    <span id="userEmailDisplay" class="text-xs font-bold text-white/90 max-w-[140px] truncate"></span>
+                    <button onclick="window.logout()" class="p-2 bg-red-500/30 text-red-100 hover:bg-red-500 hover:text-white rounded-lg transition" title="Sair do Sistema">
                         <i class="ph-bold ph-sign-out text-xl"></i>
                     </button>
                 </div>
             </div>
         </header>
 
-        <!-- CORPO DAS ABAS -->
+        <!-- CORPO PRINCIPAL -->
         <main class="max-w-7xl w-full mx-auto px-4 py-6 flex-1 pb-32">
             
             <!-- ============================================== -->
-            <!-- ABA 1: OPERAÇÃO (ESTOQUE E FILTROS)            -->
+            <!-- ABA 1: OPERAÇÃO DE ESTOQUE                     -->
             <!-- ============================================== -->
             <div id="viewEstoque" class="block fade-in">
                 
-                <!-- Barra de Busca, Scanner QR e Ações Primárias -->
-                <div class="flex flex-col lg:flex-row gap-4 mb-6 items-center">
+                <!-- Barra Superior: Busca + Botão QR Baixa Rápida + Novo Item -->
+                <div class="flex flex-col lg:flex-row gap-3 mb-6 items-stretch lg:items-center">
                     <div class="w-full lg:flex-1 relative flex items-center">
                         <i class="ph ph-magnifying-glass absolute left-4 text-2xl text-biotrop-700 dark:text-stone-400 pointer-events-none"></i>
-                        <input type="text" id="searchInput" class="w-full pl-12 pr-28 py-3.5 border-4 border-transparent bg-white dark:bg-dark-card rounded-2xl font-medium text-stone-900 dark:text-white placeholder-stone-400 shadow-md focus:border-biotrop-400 outline-none transition-all" placeholder="Buscar peça, código MAN, aplicação ou local..." />
-                        
-                        <!-- Botão Integrado de Leitura QR/MAN na Busca -->
-                        <button onclick="window.startQRScanner('global')" type="button" title="Escanear QR Code do MAN para Buscar ou Cadastrar" class="absolute right-2 px-3.5 py-2 bg-biotrop-100 dark:bg-biotrop-900/40 hover:bg-biotrop-600 hover:text-white text-biotrop-800 dark:text-biotrop-300 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm border border-biotrop-200 dark:border-biotrop-800">
-                            <i class="ph-bold ph-qr-code text-lg"></i>
-                            <span>Ler MAN</span>
+                        <input type="text" id="searchInput" class="w-full pl-12 pr-10 py-3.5 border-2 border-stone-200 dark:border-dark-border bg-white dark:bg-dark-card rounded-2xl font-medium text-stone-900 dark:text-white placeholder-stone-400 shadow-sm focus:border-biotrop-500 outline-none transition-all" placeholder="Buscar por código, nome do item, aplicação/lote ou local..." />
+                        <button id="clearSearchBtn" onclick="window.clearSearch()" class="hidden absolute right-3 text-stone-400 hover:text-stone-700 dark:hover:text-white p-1">
+                            <i class="ph-bold ph-x-circle text-xl"></i>
                         </button>
                     </div>
                     
-                    <div class="flex gap-3 w-full lg:w-auto">
-                        <!-- Toggle View -->
-                        <div class="flex bg-stone-200 dark:bg-stone-800 rounded-2xl p-1 shadow-inner h-[56px]">
-                            <button onclick="window.setViewMode('grid')" id="btnGrid" aria-label="Modo Cards" class="px-4 rounded-xl bg-white dark:bg-stone-600 shadow text-biotrop-700 dark:text-white transition">
+                    <div class="flex gap-2.5 w-full lg:w-auto">
+                        <!-- BOTÃO PRINCIPAL DE SCAN QR PARA SOMAR/SUBTRAIR RAPIDAMENTE -->
+                        <button onclick="window.startQRScanner('quick')" class="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-stone-900 px-5 h-[54px] rounded-2xl font-black transition-all shadow-md border-2 border-amber-500/30">
+                            <i class="ph-bold ph-qr-code text-2xl"></i>
+                            <span>Ler QR (+/- Rápido)</span>
+                        </button>
+
+                        <!-- Alternador Cards / Lista -->
+                        <div class="flex bg-stone-200 dark:bg-stone-800 rounded-2xl p-1 shadow-inner h-[54px]">
+                            <button onclick="window.setViewMode('grid')" id="btnGrid" title="Modo Cards" class="px-3.5 rounded-xl bg-white dark:bg-stone-600 shadow text-biotrop-700 dark:text-white transition">
                                 <i class="ph-bold ph-squares-four text-xl"></i>
                             </button>
-                            <button onclick="window.setViewMode('list')" id="btnList" aria-label="Modo Lista" class="px-4 rounded-xl text-stone-500 hover:text-stone-800 dark:text-stone-400 transition">
+                            <button onclick="window.setViewMode('list')" id="btnList" title="Modo Lista" class="px-3.5 rounded-xl text-stone-500 hover:text-stone-800 dark:text-stone-400 transition">
                                 <i class="ph-bold ph-list-dashes text-xl"></i>
                             </button>
                         </div>
-                        <button onclick="window.openAddModal()" class="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-biotrop-600 hover:bg-biotrop-500 text-white px-6 h-[56px] rounded-2xl font-bold transition-all shadow-md">
-                            <i class="ph-bold ph-plus-circle text-2xl"></i> Nova Peça
+
+                        <button onclick="window.openAddModal()" id="btnMainAdd" class="flex items-center justify-center gap-2 bg-biotrop-600 hover:bg-biotrop-500 text-white px-5 h-[54px] rounded-2xl font-bold transition-all shadow-md">
+                            <i class="ph-bold ph-plus-circle text-2xl"></i> <span id="btnMainAddLabel" class="hidden sm:inline">Nova Peça</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Notificação Rápida de Leitura QR -->
-                <div id="qrToast" class="hidden mb-6 p-4 rounded-2xl bg-biotrop-700 text-white font-bold flex items-center justify-between shadow-lg fade-in">
-                    <div class="flex items-center gap-3">
-                        <i class="ph-fill ph-check-circle text-2xl text-biotrop-200"></i>
-                        <span id="qrToastText">Código MAN lido com sucesso!</span>
-                    </div>
-                    <button onclick="window.clearQRFilter()" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition">Mostrar Todos</button>
-                </div>
-
-                <!-- Filtros de Categoria -->
-                <div class="flex justify-between items-end mb-4">
-                    <h2 class="text-xl font-black text-stone-800 dark:text-white flex items-center gap-2">
-                        Filtrar por Categoria
+                <!-- Filtros de Categoria do Setor Ativo -->
+                <div class="flex justify-between items-end mb-3">
+                    <h2 class="text-lg font-black text-stone-800 dark:text-white flex items-center gap-2">
+                        <span id="categoriesTitle">Categorias da Manutenção</span>
                         <button id="clearCategoryBtn" class="hidden ml-2 text-xs bg-stone-200 dark:bg-stone-800 hover:bg-stone-300 text-stone-700 dark:text-stone-300 px-3 py-1 rounded-full flex items-center gap-1 transition-colors font-bold">Limpar <i class="ph ph-x"></i></button>
                     </h2>
                     <div id="connectionStatus" class="hidden md:flex items-center gap-2 text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-3 py-1.5 rounded-full border border-amber-200 dark:border-amber-800 shadow-sm">
@@ -235,85 +282,210 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-8" id="categoriesContainer"></div>
+                <div class="grid grid-cols-3 lg:grid-cols-6 gap-2.5 mb-8" id="categoriesContainer"></div>
 
-                <!-- Lista de Itens -->
-                <h2 class="text-xl font-black text-stone-800 dark:text-white mb-4" id="inventoryCount">Itens Cadastrados (0)</h2>
+                <!-- Cabeçalho de Contagem e Filtro Rápido -->
+                <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+                    <h2 class="text-xl font-black text-stone-800 dark:text-white" id="inventoryCount">Itens Cadastrados (0)</h2>
+                    <button id="btnFilterNoMan" onclick="window.toggleNoManFilter()" class="text-xs font-bold px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-dark-card text-stone-600 dark:text-stone-300 hover:border-amber-500 flex items-center gap-1.5 transition">
+                        <i class="ph-fill ph-warning-octagon text-amber-500 text-base"></i> Mostrar Apenas Sem MAN Oficial
+                    </button>
+                </div>
+
                 <div id="inventoryContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
                 
                 <!-- Empty State -->
                 <div id="emptyState" class="hidden bg-white dark:bg-dark-card rounded-3xl p-12 text-center border border-stone-200 dark:border-dark-border shadow-sm mt-6">
                     <i class="ph ph-package text-6xl text-stone-300 dark:text-stone-600 mx-auto mb-4 block"></i>
-                    <h3 class="text-2xl font-bold text-stone-600 dark:text-stone-300">Nenhum resultado</h3>
-                    <p class="text-stone-500 dark:text-stone-400 mt-2 font-medium">Não encontramos peças com esses filtros.</p>
+                    <h3 id="emptyStateTitle" class="text-2xl font-bold text-stone-600 dark:text-stone-300">Nenhum item encontrado</h3>
+                    <p id="emptyStateDesc" class="text-stone-500 dark:text-stone-400 mt-2 font-medium">Verifique os filtros aplicados ou cadastre o primeiro item deste setor.</p>
                 </div>
             </div>
 
             <!-- ============================================== -->
-            <!-- ABA 2: DASHBOARD E GESTÃO                      -->
+            <!-- ABA 2: VINCULAR MANS & CATÁLOGO DYNAMICS       -->
+            <!-- ============================================== -->
+            <div id="viewDynamics" class="hidden fade-in space-y-8">
+                
+                <div class="bg-white dark:bg-dark-card rounded-3xl p-6 border-2 border-biotrop-200 dark:border-dark-border shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div class="space-y-1">
+                        <div class="inline-flex items-center gap-1.5 bg-biotrop-100 dark:bg-biotrop-900/40 text-biotrop-800 dark:text-biotrop-300 text-xs font-black px-3 py-1 rounded-full uppercase">
+                            <i class="ph-fill ph-database"></i> Base Oficial Microsoft Dynamics
+                        </div>
+                        <h2 class="text-2xl font-black text-stone-800 dark:text-white">Catálogo de Códigos do Sistema</h2>
+                        <p class="text-sm text-stone-500 dark:text-stone-400 max-w-2xl">
+                            Carregue a planilha de itens exportada do Dynamics (<code class="bg-stone-100 dark:bg-stone-800 px-1.5 py-0.5 rounded font-bold">Itens_...xlsx</code>). Os 11.099 códigos ficam salvos neste navegador para auto-completar cadastros tanto na Manutenção quanto na Produção.
+                        </p>
+                        <p id="dynamicsStatusText" class="text-xs font-bold text-amber-600 dark:text-amber-400 pt-1">
+                            Nenhum catálogo do Dynamics carregado na memória local.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-3 w-full md:w-auto shrink-0">
+                        <label class="cursor-pointer flex-1 md:flex-none flex items-center justify-center gap-2 bg-biotrop-600 hover:bg-biotrop-500 text-white px-5 py-3.5 rounded-2xl font-black transition shadow-md">
+                            <i class="ph-bold ph-file-xls text-2xl"></i>
+                            <span>Carregar Planilha ERP</span>
+                            <input type="file" id="dynamicsExcelInput" accept=".xlsx, .xls, .csv">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Seção 1: Assistente de Vínculo -->
+                <div class="bg-white dark:bg-dark-card rounded-3xl p-6 border border-stone-200 dark:border-dark-border shadow-sm">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-4 border-b border-stone-100 dark:border-dark-border">
+                        <div>
+                            <h3 class="text-lg font-black text-stone-800 dark:text-white flex items-center gap-2">
+                                <i class="ph-fill ph-magic-wand text-amber-500 text-2xl"></i> Itens Aguardando Vínculo de Código Oficial
+                            </h3>
+                            <p class="text-xs text-stone-500 dark:text-stone-400">Itens no setor atual que estão usando código provisório ou sem código do ERP.</p>
+                        </div>
+                    </div>
+
+                    <div id="unlinkedItemsList" class="space-y-4"></div>
+                </div>
+
+                <!-- Seção 2: Pesquisar nos 11.099 MANs do Dynamics -->
+                <div class="bg-white dark:bg-dark-card rounded-3xl p-6 border border-stone-200 dark:border-dark-border shadow-sm">
+                    <h3 class="text-lg font-black text-stone-800 dark:text-white mb-1 flex items-center gap-2">
+                        <i class="ph-bold ph-magnifying-glass text-biotrop-600 text-2xl"></i> Consultar Base Completa do Dynamics
+                    </h3>
+                    <p class="text-xs text-stone-500 dark:text-stone-400 mb-4">Pesquise qualquer código (ex: <code class="font-bold">MAN1187</code>) ou descrição para trazer para o estoque do setor ativo com 1 clique.</p>
+
+                    <div class="relative mb-4">
+                        <i class="ph ph-magnifying-glass absolute left-4 top-3.5 text-xl text-stone-400"></i>
+                        <input type="text" id="dynamicsSearchInput" placeholder="Digite o código ou palavras-chave do produto no Dynamics..." class="w-full pl-11 pr-4 py-3 bg-stone-50 dark:bg-dark-bg border-2 border-stone-200 dark:border-dark-border rounded-xl font-medium outline-none focus:border-biotrop-500 transition" />
+                    </div>
+
+                    <div id="dynamicsSearchResults" class="divide-y divide-stone-100 dark:divide-dark-border max-h-96 overflow-y-auto">
+                        <p class="text-xs text-stone-400 py-6 text-center">Digite pelo menos 2 caracteres acima para pesquisar no catálogo do Dynamics.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================== -->
+            <!-- ABA 3: DASHBOARD E GESTÃO                      -->
             <!-- ============================================== -->
             <div id="viewDashboard" class="hidden fade-in">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <h2 class="text-2xl font-black text-stone-800 dark:text-white">Inteligência Gerencial</h2>
-                    <div class="flex gap-2 w-full md:w-auto">
-                        <label class="cursor-pointer flex-1 md:flex-none flex items-center justify-center gap-2 bg-stone-100 dark:bg-dark-card hover:bg-stone-200 text-stone-700 dark:text-stone-200 px-5 py-3 rounded-xl font-bold transition shadow border border-stone-200 dark:border-dark-border">
-                            <i class="ph-bold ph-upload-simple text-xl"></i> Importar
+                    <div>
+                        <h2 id="dashboardTitle" class="text-2xl font-black text-stone-800 dark:text-white">Inteligência Gerencial • Manutenção</h2>
+                        <p class="text-xs text-stone-500 font-medium">Dados isolados para o setor selecionado</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                        <label class="cursor-pointer flex-1 md:flex-none flex items-center justify-center gap-2 bg-stone-100 dark:bg-dark-card hover:bg-stone-200 text-stone-700 dark:text-stone-200 px-4 py-3 rounded-xl font-bold transition shadow-sm border border-stone-200 dark:border-dark-border text-sm">
+                            <i class="ph-bold ph-upload-simple text-lg"></i> Importar Planilha (.xlsx)
                             <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv">
                         </label>
-                        <button onclick="window.exportToExcel()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-stone-800 dark:bg-stone-200 text-white dark:text-stone-900 px-5 py-3 rounded-xl font-bold hover:bg-stone-700 transition shadow">
-                            <i class="ph-bold ph-download-simple text-xl"></i> Relatório ERP
+                        <button onclick="window.exportToExcel()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-stone-800 dark:bg-stone-200 text-white dark:text-stone-900 px-4 py-3 rounded-xl font-bold hover:bg-stone-700 transition shadow-sm text-sm">
+                            <i class="ph-bold ph-download-simple text-lg"></i> Exportar Relatório ERP
                         </button>
                     </div>
                 </div>
 
                 <!-- KPIs -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-stone-200 dark:border-dark-border shadow-sm flex items-center gap-4">
-                        <div class="w-14 h-14 bg-biotrop-100 text-biotrop-700 rounded-2xl flex items-center justify-center text-3xl"><i class="ph-fill ph-cubes"></i></div>
-                        <div><p class="text-xs font-bold text-stone-500 uppercase">Total de SKUs (MAN)</p><p id="kpiTotal" class="text-3xl font-black text-stone-800 dark:text-white">0</p></div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white dark:bg-dark-card p-5 rounded-3xl border border-stone-200 dark:border-dark-border shadow-sm flex items-center gap-4">
+                        <div class="w-12 h-12 bg-biotrop-100 text-biotrop-700 rounded-2xl flex items-center justify-center text-2xl"><i class="ph-fill ph-cubes"></i></div>
+                        <div><p class="text-[11px] font-bold text-stone-500 uppercase">Itens no Setor</p><p id="kpiTotal" class="text-2xl font-black text-stone-800 dark:text-white">0</p></div>
                     </div>
-                    <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-red-200 dark:border-red-900/30 shadow-sm flex items-center gap-4">
-                        <div class="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center text-3xl"><i class="ph-fill ph-warning-circle"></i></div>
-                        <div><p class="text-xs font-bold text-red-500 uppercase">Peças em Ruptura</p><p id="kpiRuptura" class="text-3xl font-black text-red-600">0</p></div>
+                    <div class="bg-white dark:bg-dark-card p-5 rounded-3xl border border-red-200 dark:border-red-900/30 shadow-sm flex items-center gap-4">
+                        <div class="w-12 h-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center text-2xl"><i class="ph-fill ph-warning-circle"></i></div>
+                        <div><p class="text-[11px] font-bold text-red-500 uppercase">Estoque Baixo</p><p id="kpiRuptura" class="text-2xl font-black text-red-600">0</p></div>
                     </div>
-                    <div class="bg-white dark:bg-dark-card p-6 rounded-3xl border border-blue-200 dark:border-blue-900/30 shadow-sm flex items-center gap-4">
-                        <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-3xl"><i class="ph-fill ph-activity"></i></div>
-                        <div><p class="text-xs font-bold text-blue-500 uppercase">Movimentações Hoje</p><p id="kpiMovimentos" class="text-3xl font-black text-blue-600">0</p></div>
+                    <div class="bg-white dark:bg-dark-card p-5 rounded-3xl border border-amber-200 dark:border-amber-900/30 shadow-sm flex items-center gap-4">
+                        <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl"><i class="ph-fill ph-tag"></i></div>
+                        <div><p class="text-[11px] font-bold text-amber-600 uppercase">Cód. Provisório</p><p id="kpiSemMan" class="text-2xl font-black text-amber-600">0</p></div>
+                    </div>
+                    <div class="bg-white dark:bg-dark-card p-5 rounded-3xl border border-blue-200 dark:border-blue-900/30 shadow-sm flex items-center gap-4">
+                        <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl"><i class="ph-fill ph-activity"></i></div>
+                        <div><p class="text-[11px] font-bold text-blue-500 uppercase">Movimentos Hoje</p><p id="kpiMovimentos" class="text-2xl font-black text-blue-600">0</p></div>
                     </div>
                 </div>
 
                 <!-- Log de Auditoria -->
                 <div class="bg-white dark:bg-dark-card rounded-3xl border border-stone-200 dark:border-dark-border overflow-hidden shadow-sm">
                     <div class="p-6 border-b border-stone-100 dark:border-dark-border">
-                        <h3 class="text-lg font-bold text-stone-800 dark:text-white flex items-center gap-2"><i class="ph-bold ph-list-magnifying-glass"></i> Log de Auditoria (Recentes)</h3>
+                        <h3 class="text-lg font-bold text-stone-800 dark:text-white flex items-center gap-2"><i class="ph-bold ph-list-magnifying-glass"></i> Log de Auditoria do Setor (Últimas Movimentações)</h3>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse min-w-[600px]">
                             <thead>
                                 <tr class="bg-stone-50 dark:bg-stone-800/50 text-xs uppercase text-stone-500 font-bold border-b border-stone-200 dark:border-dark-border">
                                     <th class="p-4 pl-6">Data / Hora</th>
-                                    <th class="p-4">Matrícula/Usuário</th>
-                                    <th class="p-4">Item Alterado</th>
+                                    <th class="p-4">Usuário</th>
+                                    <th class="p-4">Código & Item</th>
                                     <th class="p-4 text-center pr-6">Operação</th>
                                 </tr>
                             </thead>
-                            <tbody id="logsTableBody" class="text-sm font-medium text-stone-700 dark:text-stone-300">
-                                <!-- Preenchido dinamicamente -->
-                            </tbody>
+                            <tbody id="logsTableBody" class="text-sm font-medium text-stone-700 dark:text-stone-300"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- Botão Flutuante Mobile para Escanear QR Rápido -->
-        <button onclick="window.startQRScanner('global')" class="md:hidden fixed bottom-6 right-6 w-16 h-16 bg-biotrop-700 text-white rounded-full flex items-center justify-center shadow-2xl border-4 border-white dark:border-stone-800 hover:bg-biotrop-600 active:scale-95 z-40" title="Escanear QR Code MAN">
-            <i class="ph-bold ph-qr-code text-3xl"></i>
+        <!-- Botão Flutuante Mobile: Scan QR p/ Baixa ou Entrada Rápida -->
+        <button onclick="window.startQRScanner('quick')" class="md:hidden fixed bottom-6 right-6 px-5 h-16 bg-amber-400 text-stone-900 rounded-full flex items-center justify-center gap-2 shadow-2xl border-4 border-white dark:border-stone-800 font-black active:scale-95 z-40">
+            <i class="ph-bold ph-qr-code text-2xl"></i>
+            <span class="text-sm">QR (+/-)</span>
         </button>
     </div>
 
     <!-- =================================================================== -->
-    <!-- MENU LATERAL DE CONFIGURAÇÕES (ACESSIBILIDADE)                      -->
+    <!-- MODAL: MOVIMENTAÇÃO RÁPIDA PÓS-SCAN QR CODE (+ / - EXPRESSO)        -->
+    <!-- =================================================================== -->
+    <div id="quickAdjustModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-stone-900/80 backdrop-blur-sm">
+        <div class="bg-white dark:bg-dark-bg rounded-3xl shadow-2xl w-full max-w-md overflow-hidden modal-enter border-2 border-biotrop-500 p-6">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <span id="qaManBadge" class="inline-block bg-biotrop-100 dark:bg-biotrop-900/40 text-biotrop-800 dark:text-biotrop-300 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider mb-1">MAN1187</span>
+                    <h3 id="qaItemName" class="text-xl font-black text-stone-800 dark:text-white leading-snug">Nome do Item</h3>
+                    <p id="qaItemLocal" class="text-xs font-bold text-amber-600 dark:text-amber-400 mt-0.5"><i class="ph-fill ph-map-pin"></i> Localização</p>
+                </div>
+                <button onclick="window.closeQuickAdjustModal()" class="text-stone-400 hover:text-stone-700 dark:hover:text-white bg-stone-100 dark:bg-stone-800 p-2 rounded-full">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <div class="bg-stone-100 dark:bg-dark-card rounded-2xl p-5 text-center my-4 border border-stone-200 dark:border-dark-border">
+                <p class="text-[11px] font-black uppercase tracking-widest text-stone-400 mb-1">Saldo Atual em Estoque</p>
+                <div class="flex items-baseline justify-center gap-2">
+                    <span id="qaCurrentQty" class="text-5xl font-black text-stone-800 dark:text-white">0</span>
+                    <span id="qaUnit" class="text-base font-bold text-stone-400">un</span>
+                </div>
+            </div>
+
+            <p class="text-xs font-bold text-center text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2.5">Toque para Somar ou Subtrair Agora</p>
+            <div class="grid grid-cols-4 gap-2.5 mb-5">
+                <button type="button" onclick="window.applyQuickAdjust(-5)" class="py-4 bg-red-100 hover:bg-red-500 text-red-700 hover:text-white rounded-2xl font-black text-xl transition active:scale-95 shadow-sm border border-red-200">-5</button>
+                <button type="button" onclick="window.applyQuickAdjust(-1)" class="py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black text-2xl transition active:scale-95 shadow-md">-1</button>
+                <button type="button" onclick="window.applyQuickAdjust(1)" class="py-4 bg-biotrop-600 hover:bg-biotrop-500 text-white rounded-2xl font-black text-2xl transition active:scale-95 shadow-md">+1</button>
+                <button type="button" onclick="window.applyQuickAdjust(5)" class="py-4 bg-biotrop-100 hover:bg-biotrop-600 text-biotrop-800 hover:text-white rounded-2xl font-black text-xl transition active:scale-95 shadow-sm border border-biotrop-200">+5</button>
+            </div>
+
+            <div class="flex gap-2 items-center pt-4 border-t border-stone-200 dark:border-dark-border mb-4">
+                <input type="number" id="qaCustomAmount" min="1" value="10" class="w-24 p-3 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-black text-center text-lg outline-none focus:border-biotrop-500" />
+                <button type="button" onclick="window.applyCustomQuickAdjust(-1)" class="flex-1 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white font-bold rounded-xl text-xs transition border border-red-200 dark:border-red-800">
+                    Retirar Qtd
+                </button>
+                <button type="button" onclick="window.applyCustomQuickAdjust(1)" class="flex-1 py-3 bg-biotrop-50 dark:bg-biotrop-900/20 text-biotrop-700 dark:text-biotrop-300 hover:bg-biotrop-600 hover:text-white font-bold rounded-xl text-xs transition border border-biotrop-200 dark:border-biotrop-800">
+                    Adicionar Qtd
+                </button>
+            </div>
+
+            <div class="flex justify-between items-center gap-2 pt-2">
+                <button type="button" onclick="window.startQRScanner('quick')" class="flex-1 py-3 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-700 dark:text-stone-300 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition">
+                    <i class="ph-bold ph-qr-code text-base"></i> Ler Outro QR
+                </button>
+                <button type="button" id="qaBtnEdit" class="py-3 px-4 bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 rounded-xl font-bold text-xs flex items-center gap-1 transition">
+                    <i class="ph-bold ph-pencil-simple"></i> Editar Ficha
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MENU LATERAL DE CONFIGURAÇÕES E TROCA DE SETOR                      -->
     <!-- =================================================================== -->
     <div id="settingsMenu" class="fixed inset-0 z-50 hidden bg-stone-900/60 backdrop-blur-sm justify-end">
         <div class="bg-white dark:bg-dark-bg w-full max-w-sm h-full shadow-2xl slide-in flex flex-col">
@@ -323,7 +495,19 @@
             </div>
             
             <div class="p-6 flex-1 overflow-y-auto space-y-8">
-                <!-- Tema -->
+                <!-- Seletor de Setor no Menu Lateral -->
+                <div>
+                    <h4 class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">Setor Ativo da Biotrop</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="window.selectSector('manutencao')" id="menuBtnManut" class="py-3 px-3 rounded-xl border-2 font-black text-xs flex flex-col items-center gap-1.5 transition">
+                            <i class="ph-fill ph-wrench text-2xl"></i> Manutenção
+                        </button>
+                        <button onclick="window.selectSector('producao')" id="menuBtnProd" class="py-3 px-3 rounded-xl border-2 font-black text-xs flex flex-col items-center gap-1.5 transition">
+                            <i class="ph-fill ph-flask text-2xl"></i> Produção
+                        </button>
+                    </div>
+                </div>
+
                 <div>
                     <h4 class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">Aparência</h4>
                     <div class="flex gap-2">
@@ -336,7 +520,6 @@
                     </div>
                 </div>
 
-                <!-- Cor de Fundo -->
                 <div>
                     <h4 class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">Cor de Fundo (Acessibilidade)</h4>
                     <div class="flex items-center gap-3">
@@ -345,7 +528,6 @@
                     </div>
                 </div>
 
-                <!-- Tamanho da Fonte -->
                 <div>
                     <h4 class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">Tamanho da Fonte</h4>
                     <div class="flex items-center gap-2 bg-stone-100 dark:bg-dark-card p-2 rounded-xl">
@@ -355,8 +537,7 @@
                     </div>
                 </div>
 
-                <!-- Ações Mobile -->
-                <div class="md:hidden pt-6 border-t border-stone-200 dark:border-dark-border flex flex-col gap-3">
+                <div class="pt-6 border-t border-stone-200 dark:border-dark-border flex flex-col gap-3">
                     <span id="userEmailMobile" class="text-xs font-bold text-stone-500 text-center"></span>
                     <button onclick="window.logout()" class="w-full flex justify-center items-center gap-2 py-3 bg-red-100 dark:bg-red-900/30 text-red-600 font-bold rounded-xl"><i class="ph-bold ph-sign-out text-xl"></i> Sair do Sistema</button>
                 </div>
@@ -365,65 +546,78 @@
     </div>
 
     <!-- =================================================================== -->
-    <!-- MODAL 1: CADASTRAR/EDITAR COMPONENTE (COM LEITOR QR INTEGRADO)      -->
+    <!-- MODAL 1: CADASTRAR/EDITAR ITEM (ADAPTÁVEL MANUTENÇÃO / PRODUÇÃO)    -->
     <!-- =================================================================== -->
     <div id="addModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-stone-900/70 backdrop-blur-sm overflow-y-auto">
         <div class="bg-white dark:bg-dark-bg rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden modal-enter my-8 border border-stone-200 dark:border-dark-border">
-            <div class="p-6 text-white bg-biotrop-700 flex justify-between items-center">
-                <h3 id="modalTitleText" class="text-2xl font-black flex items-center gap-2"><i class="ph ph-cube"></i> Cadastrar Componente</h3>
+            <div id="modalHeaderBar" class="p-6 text-white bg-biotrop-700 flex justify-between items-center">
+                <h3 id="modalTitleText" class="text-2xl font-black flex items-center gap-2"><i class="ph ph-cube"></i> Cadastrar Item</h3>
                 <button onclick="window.closeAddModal()" class="text-white/80 hover:text-white bg-white/20 p-2 rounded-full transition-colors"><i class="ph ph-x text-xl"></i></button>
             </div>
 
             <form id="addItemForm" class="p-6 sm:p-8">
                 <input type="hidden" id="formItemId">
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <!-- Código MAN com Botão de Scanner QR -->
+                <!-- Barra de Busca Rápida no Dynamics + Gerador de Código Curto -->
+                <div class="mb-6 p-3.5 bg-biotrop-50 dark:bg-biotrop-900/20 border border-biotrop-200 dark:border-biotrop-800/60 rounded-2xl">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                        <label class="text-xs font-black uppercase text-biotrop-800 dark:text-biotrop-300 flex items-center gap-1.5">
+                            <i class="ph-fill ph-sparkle"></i> Busca Rápida no Catálogo Dynamics
+                        </label>
+                        <button type="button" id="btnGenProvCode" onclick="window.generateProvisionalCode()" class="text-[11px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 px-2.5 py-1 rounded-lg transition">
+                            Sem código no ERP? Gerar Código Curto
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <input type="text" id="modalDynamicsLookup" placeholder="Digite o código (ex: MAN1187) ou nome para puxar dados automaticamente..." class="w-full p-3 bg-white dark:bg-dark-card border border-biotrop-300 dark:border-stone-700 rounded-xl text-sm font-medium outline-none focus:border-biotrop-600" />
+                        <div id="modalDynamicsDropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-white dark:bg-dark-card border-2 border-biotrop-500 rounded-2xl shadow-2xl max-h-56 overflow-y-auto z-30 divide-y divide-stone-100 dark:divide-dark-border"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+                    <!-- Código -->
                     <div>
-                        <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Código MAN (PN) *</label>
+                        <label id="labelFormCodigo" class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Código MAN *</label>
                         <div class="flex gap-2">
-                            <input type="text" id="formCodigo" required placeholder="Ex: MAN00123" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-black text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all uppercase" />
-                            <button type="button" onclick="window.startQRScanner('form')" title="Ler QR Code do MAN pela câmera" class="px-4 bg-biotrop-100 dark:bg-biotrop-900/40 text-biotrop-700 dark:text-biotrop-300 hover:bg-biotrop-600 hover:text-white rounded-xl flex items-center justify-center transition border-2 border-biotrop-200 dark:border-biotrop-800 shrink-0">
+                            <input type="text" id="formCodigo" required placeholder="Ex: MAN1187" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-black text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all uppercase" />
+                            <button type="button" onclick="window.startQRScanner('form')" title="Ler QR Code" class="px-3.5 bg-biotrop-100 dark:bg-biotrop-900/40 text-biotrop-700 dark:text-biotrop-300 hover:bg-biotrop-600 hover:text-white rounded-xl flex items-center justify-center transition border-2 border-biotrop-200 dark:border-biotrop-800 shrink-0">
                                 <i class="ph-bold ph-qr-code text-2xl"></i>
                             </button>
                         </div>
                     </div>
 
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Nome da Peça *</label>
-                        <input type="text" id="formNome" required placeholder="Ex: Contator Tripolar" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-medium text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all" />
+                        <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Nome / Descrição do Item *</label>
+                        <input type="text" id="formNome" required placeholder="Ex: Transmissor de Pressão / Frasco 1L" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-medium text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all" />
                     </div>
 
                     <div>
                         <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Categoria *</label>
                         <select id="formCategoria" required class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-medium text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all">
-                            <option value="">Selecione...</option>
-                            <option value="Elétrica">Componentes Elétricos</option><option value="Pneumática">Componentes Pneumáticos</option>
-                            <option value="Mecânica">Componentes Mecânicos</option><option value="Fixação">Elementos de Fixação</option>
-                            <option value="Eletrônica">Equipamentos Eletrônicos</option><option value="Ferramentas">Ferramentas & Consumíveis</option>
+                            <!-- Preenchido dinamicamente conforme o Setor (Manutenção ou Produção) -->
                         </select>
                     </div>
 
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Especificação Técnica</label>
-                        <input type="text" id="formSpecs" placeholder="Ex: 24VDC, M8x20mm..." class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-medium text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all" />
+                        <label id="labelFormSpecs" class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Especificação Técnica / Detalhes</label>
+                        <input type="text" id="formSpecs" placeholder="Ex: 4-20mA, 24VDC, Capacidade, Fornecedor..." class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-medium text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all" />
                     </div>
 
                     <div class="md:col-span-1">
-                        <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2 flex items-center gap-1"><i class="ph-fill ph-factory text-biotrop-500"></i> Aplicação</label>
-                        <input type="text" id="formAplicacao" placeholder="Ex: Esteira 02" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-medium text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all" />
+                        <label id="labelFormAplicacao" class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2 flex items-center gap-1"><i class="ph-fill ph-factory text-biotrop-500"></i> Aplicação / Lote</label>
+                        <input type="text" id="formAplicacao" placeholder="Ex: Linha 02 / Lote" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-medium text-stone-900 dark:text-white focus:border-biotrop-500 outline-none transition-all" />
                     </div>
 
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2 flex items-center gap-1"><i class="ph-fill ph-map-pin text-amber-500"></i> Localização Exata *</label>
-                        <input type="text" id="formLocal" required placeholder="Ex: Corredor A > Estante 3" class="w-full p-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-700/50 rounded-xl font-medium text-amber-900 dark:text-amber-100 focus:border-amber-500 outline-none transition-all" />
+                        <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2 flex items-center gap-1"><i class="ph-fill ph-map-pin text-amber-500"></i> Localização Física Exata *</label>
+                        <input type="text" id="formLocal" required placeholder="Ex: Armário B > Prateleira 2 / Galpão Produção" class="w-full p-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-700/50 rounded-xl font-medium text-amber-900 dark:text-amber-100 focus:border-amber-500 outline-none transition-all" />
                     </div>
 
                     <!-- Quantidades e Unidade -->
                     <div class="md:col-span-3 grid grid-cols-3 gap-4 pt-4 border-t border-stone-100 dark:border-dark-border">
                         <div>
                             <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Qtd. Atual</label>
-                            <input type="number" id="formQty" required min="0" value="0" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl text-xl font-black text-stone-900 dark:text-white focus:border-biotrop-500 outline-none text-center" />
+                            <input type="number" id="formQty" required min="0" value="1" class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl text-xl font-black text-stone-900 dark:text-white focus:border-biotrop-500 outline-none text-center" />
                         </div>
                         <div>
                             <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Qtd. Mínima</label>
@@ -432,16 +626,16 @@
                         <div>
                             <label class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">Unidade</label>
                             <select id="formUnidade" required class="w-full p-4 bg-stone-50 dark:bg-dark-card border-2 border-stone-200 dark:border-stone-700 rounded-xl font-bold text-stone-900 dark:text-white focus:border-biotrop-500 outline-none text-center">
-                                <option value="un">un</option><option value="pc">pç</option><option value="m">m</option><option value="kg">kg</option><option value="cx">cx</option><option value="l">l</option>
+                                <option value="un">un</option><option value="pc">pç</option><option value="cx">cx</option><option value="kg">kg</option><option value="l">l</option><option value="m">m</option><option value="rl">rolo</option><option value="pct">pct</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex gap-4 mt-8 pt-6 border-t border-stone-100 dark:border-dark-border">
+                <div class="flex gap-4 mt-6 pt-5 border-t border-stone-100 dark:border-dark-border">
                     <button type="button" onclick="window.closeAddModal()" class="flex-1 py-4 font-bold text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 rounded-xl transition">Cancelar</button>
                     <button type="submit" id="btnSubmitAdd" class="flex-1 py-4 font-black text-white bg-biotrop-600 hover:bg-biotrop-700 rounded-xl transition shadow-md flex items-center justify-center gap-2">
-                        <i class="ph-bold ph-check"></i> Salvar
+                        <i class="ph-bold ph-check"></i> Salvar no Estoque
                     </button>
                 </div>
             </form>
@@ -470,88 +664,93 @@
     </div>
 
     <!-- =================================================================== -->
-    <!-- MODAL 3: LEITOR DE QR CODE / CÓDIGO MAN (CÂMERA)                    -->
+    <!-- MODAL 3: LEITOR DE QR CODE (FOCO EM BAIXA/ADIÇÃO RÁPIDA)            -->
     <!-- =================================================================== -->
     <div id="qrScannerModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-stone-900/80 backdrop-blur-sm">
         <div class="bg-white dark:bg-dark-bg rounded-3xl shadow-2xl w-full max-w-md overflow-hidden modal-enter border border-stone-200 dark:border-dark-border">
             <div class="p-5 text-white bg-biotrop-800 flex justify-between items-center">
                 <h3 class="text-lg font-black flex items-center gap-2">
-                    <i class="ph-bold ph-qr-code text-2xl"></i> Leitor de QR Code (MAN)
+                    <i class="ph-bold ph-qr-code text-2xl text-amber-400"></i> Escanear Etiqueta QR
                 </h3>
                 <button onclick="window.stopQRScanner()" class="text-white/80 hover:text-white bg-white/20 p-2 rounded-full transition">
                     <i class="ph ph-x text-xl"></i>
                 </button>
             </div>
             <div class="p-6 text-center">
-                <p id="qrScannerSubtitle" class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-4">
-                    Aponte a câmera para o QR Code da peça
+                <p id="qrScannerSubtitle" class="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-3">
+                    Aponte para o QR Code para Somar ou Subtrair Rapidamente
                 </p>
-                <!-- Visor da Câmera -->
-                <div id="qrReader" class="w-full rounded-2xl overflow-hidden border-4 border-biotrop-500 bg-black min-h-[260px]"></div>
-                
-                <div class="mt-4 p-3 bg-stone-100 dark:bg-dark-card rounded-xl text-left text-xs text-stone-500 dark:text-stone-400">
-                    <p class="font-bold text-stone-700 dark:text-stone-200 mb-1"><i class="ph-fill ph-lightbulb text-amber-500"></i> Dica de Cadastro Rápido:</p>
-                    <p>Se o código MAN lido ainda não existir no estoque, o formulário de cadastro abrirá automaticamente já preenchido!</p>
+                <div id="qrReader" class="w-full rounded-2xl overflow-hidden border-4 border-biotrop-500 bg-black min-h-[250px]"></div>
+
+                <div class="mt-4 flex gap-2">
+                    <input type="text" id="manualQrInput" placeholder="Ou digite o código aqui (ex: MAN1187 / PRD001)" class="flex-1 p-3 bg-stone-100 dark:bg-dark-card border border-stone-300 dark:border-stone-700 rounded-xl text-sm font-bold uppercase outline-none focus:border-biotrop-500" />
+                    <button type="button" onclick="window.triggerManualQrCode()" class="px-4 bg-biotrop-600 text-white font-bold rounded-xl text-xs hover:bg-biotrop-500 transition">Abrir</button>
                 </div>
 
-                <button type="button" onclick="window.stopQRScanner()" class="w-full mt-5 py-3.5 font-bold text-stone-600 dark:text-stone-300 bg-stone-200 dark:bg-stone-800 hover:bg-stone-300 rounded-xl transition">
-                    Fechar Câmera
+                <div id="qrNotFoundBox" class="hidden mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-2xl text-left">
+                    <p id="qrNotFoundTitle" class="text-sm font-black text-amber-900 dark:text-amber-200 mb-1"></p>
+                    <p id="qrNotFoundDesc" class="text-xs text-amber-800 dark:text-amber-300 mb-3"></p>
+                    <button type="button" id="btnRegisterScannedMan" class="w-full py-3 bg-biotrop-600 hover:bg-biotrop-500 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow">
+                        <i class="ph-bold ph-plus-circle text-base"></i> Cadastrar este Item Agora
+                    </button>
+                </div>
+
+                <button type="button" onclick="window.stopQRScanner()" class="w-full mt-4 py-3 font-bold text-stone-600 dark:text-stone-300 bg-stone-200 dark:bg-stone-800 hover:bg-stone-300 rounded-xl transition text-sm">
+                    Fechar
                 </button>
             </div>
         </div>
     </div>
 
     <!-- =================================================================== -->
-    <!-- MODAL 4: ETIQUETA QR CODE DO ITEM (GERAÇÃO E IMPRESSÃO)             -->
+    <!-- MODAL 4: ETIQUETA QR CODE DO ITEM                                   -->
     <!-- =================================================================== -->
     <div id="qrLabelModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-stone-900/80 backdrop-blur-sm">
         <div class="bg-white dark:bg-dark-bg rounded-3xl shadow-2xl w-full max-w-md overflow-hidden modal-enter border border-stone-200 dark:border-dark-border p-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-black text-stone-800 dark:text-white flex items-center gap-2">
-                    <i class="ph-fill ph-tag text-biotrop-600"></i> Etiqueta de Identificação
+                    <i class="ph-fill ph-tag text-biotrop-600"></i> Etiqueta QR Code
                 </h3>
                 <button onclick="window.closeQRLabelModal()" class="text-stone-400 hover:text-stone-700 dark:hover:text-white p-2 rounded-full">
                     <i class="ph-bold ph-x text-xl"></i>
                 </button>
             </div>
 
-            <!-- Área Imprimível da Etiqueta -->
             <div id="printableLabelArea" class="bg-white text-stone-900 border-2 border-stone-800 rounded-2xl p-5 text-center shadow-inner mb-6">
                 <div class="flex items-center justify-between border-b-2 border-stone-800 pb-2 mb-4">
-                    <span class="text-xs font-black tracking-widest uppercase">BIOTROP • CAMM 3</span>
-                    <span id="labelCategoria" class="text-[10px] font-bold bg-stone-200 px-2 py-0.5 rounded uppercase">MECÂNICA</span>
+                    <span id="labelHeaderSector" class="text-xs font-black tracking-widest uppercase">BIOTROP • CAMM 3</span>
+                    <span id="labelCategoria" class="text-[10px] font-bold bg-stone-200 px-2 py-0.5 rounded uppercase">GERAL</span>
                 </div>
                 
-                <!-- Container onde o QR Code é renderizado -->
                 <div id="qrcodeCanvas" class="my-3 flex justify-center"></div>
                 
-                <p id="labelCodigoMan" class="text-2xl font-black tracking-wider uppercase text-stone-900 mt-2">MAN-0000</p>
-                <h4 id="labelNomeItem" class="text-base font-bold text-stone-800 leading-snug mt-1 line-clamp-2">Nome do Componente</h4>
-                <p id="labelSpecsItem" class="text-xs font-medium text-stone-500 mt-0.5">Especificação</p>
+                <p id="labelCodigoMan" class="text-2xl font-black tracking-wider uppercase text-stone-900 mt-2">MAN1187</p>
+                <h4 id="labelNomeItem" class="text-sm font-bold text-stone-800 leading-snug mt-1 line-clamp-2">Nome do Item</h4>
+                <p id="labelSpecsItem" class="text-[11px] font-medium text-stone-500 mt-0.5">Especificação</p>
                 
                 <div class="mt-3 pt-2 border-t border-stone-300 flex items-center justify-center gap-1 text-xs font-black uppercase text-stone-700">
-                    <i class="ph-fill ph-map-pin"></i> <span id="labelLocalItem">Corredor A > Estante 1</span>
+                    <i class="ph-fill ph-map-pin"></i> <span id="labelLocalItem">Localização</span>
                 </div>
             </div>
 
             <div class="flex gap-3">
-                <button type="button" onclick="window.downloadQRImage()" class="flex-1 py-3.5 font-bold text-biotrop-700 bg-biotrop-100 hover:bg-biotrop-200 rounded-xl transition flex items-center justify-center gap-2">
+                <button type="button" onclick="window.downloadQRImage()" class="flex-1 py-3.5 font-bold text-biotrop-700 bg-biotrop-100 hover:bg-biotrop-200 rounded-xl transition flex items-center justify-center gap-2 text-sm">
                     <i class="ph-bold ph-download-simple text-lg"></i> Baixar PNG
                 </button>
-                <button type="button" onclick="window.print()" class="flex-1 py-3.5 font-black text-white bg-biotrop-600 hover:bg-biotrop-700 rounded-xl transition shadow-md flex items-center justify-center gap-2">
-                    <i class="ph-bold ph-printer text-lg"></i> Imprimir
+                <button type="button" onclick="window.print()" class="flex-1 py-3.5 font-black text-white bg-biotrop-600 hover:bg-biotrop-700 rounded-xl transition shadow-md flex items-center justify-center gap-2 text-sm">
+                    <i class="ph-bold ph-printer text-lg"></i> Imprimir Etiqueta
                 </button>
             </div>
         </div>
     </div>
 
     <!-- =================================================================== -->
-    <!-- LÓGICA CORE (FIREBASE, UI STATE, CRUD & QR CODE)                    -->
+    <!-- LÓGICA CORE MULTI-SETOR (MANUTENÇÃO & PRODUÇÃO NO MESMO FIREBASE)   -->
     <!-- =================================================================== -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCsEIS8RLFMy9p8kQXMRulHshBVrUsjlgA",
@@ -566,134 +765,448 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        
+
+        // CONFIGURAÇÃO DE CADA SETOR (Coleções isoladas no mesmo Firebase!)
+        const SECTORS_CONFIG = {
+            manutencao: {
+                id: 'manutencao',
+                title: 'MANUTENÇÃO',
+                subtitle: 'CAMM 3 • Oficina de Manutenção',
+                labelHeader: 'BIOTROP • MANUTENÇÃO CAMM 3',
+                stockCollection: 'estoque',         // Mantém 100% dos seus itens já cadastrados!
+                logsCollection: 'historico',
+                codePrefix: 'CAMM',
+                codeLabel: 'Código MAN *',
+                codePlaceholder: 'Ex: MAN1187',
+                appFieldLabel: 'Aplicação (Máquina/Setor)',
+                appFieldPlaceholder: 'Ex: Reator 01 / Esteira 02',
+                addBtnLabel: 'Nova Peça',
+                headerBgClass: 'bg-biotrop-800',
+                categories: {
+                    'Elétrica': { icon: 'ph-lightning', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', name: 'Elétrica' },
+                    'Pneumática': { icon: 'ph-wind', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400', name: 'Pneumática' },
+                    'Mecânica': { icon: 'ph-gear', color: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300', name: 'Mecânica' },
+                    'Fixação': { icon: 'ph-link', color: 'bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-400', name: 'Fixação' },
+                    'Eletrônica': { icon: 'ph-cpu', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', name: 'Eletrônica' },
+                    'Ferramentas': { icon: 'ph-wrench', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400', name: 'Ferramentas' },
+                }
+            },
+            producao: {
+                id: 'producao',
+                title: 'PRODUÇÃO',
+                subtitle: 'Controle de Insumos, Embalagens & Operação',
+                labelHeader: 'BIOTROP • PRODUÇÃO',
+                stockCollection: 'estoque_producao', // Coleção separada criada automaticamente no Firebase!
+                logsCollection: 'historico_producao',
+                codePrefix: 'PRD',
+                codeLabel: 'Código / SKU *',
+                codePlaceholder: 'Ex: PRD001 ou MAN',
+                appFieldLabel: 'Linha / Lote / Validade',
+                appFieldPlaceholder: 'Ex: Linha Envase / Lote 24A',
+                addBtnLabel: 'Novo Item',
+                headerBgClass: 'bg-teal-800',
+                categories: {
+                    'Embalagens': { icon: 'ph-package', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', name: 'Embalagens & Rótulos' },
+                    'Insumos': { icon: 'ph-flask', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', name: 'Insumos & Matéria-Prima' },
+                    'EPIs': { icon: 'ph-shield-check', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400', name: 'EPIs & Segurança' },
+                    'Higienização': { icon: 'ph-drop', color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400', name: 'Limpeza & Sanitização' },
+                    'Utensílios': { icon: 'ph-toolbox', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', name: 'Utensílios de Linha' },
+                    'Outros': { icon: 'ph-dots-three-circle', color: 'bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-300', name: 'Geral / Outros' },
+                }
+            }
+        };
+
         let state = {
+            sector: localStorage.getItem('biotrop_sector') || 'manutencao',
             inventory: [],
+            dynamicsCatalog: [],
             currentUser: null,
+            authMode: 'login',
             searchTerm: '',
             activeCategory: null,
+            onlyNoMan: false,
             viewMode: 'grid',
+            quickAdjustItemId: null,
+            scannerMode: 'quick'
         };
 
-        const categoriesMap = {
-            'Elétrica': { icon: 'ph-lightning', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', name: 'Elétrica' },
-            'Pneumática': { icon: 'ph-wind', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400', name: 'Pneumática' },
-            'Mecânica': { icon: 'ph-gear', color: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300', name: 'Mecânica' },
-            'Fixação': { icon: 'ph-link', color: 'bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-400', name: 'Fixação' },
-            'Eletrônica': { icon: 'ph-cpu', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', name: 'Eletrônica' },
-            'Ferramentas': { icon: 'ph-wrench', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400', name: 'Ferramentas' },
-        };
-
+        let unsubscribeStock = null;
+        let unsubscribeLogs = null;
         let itemToDeleteId = null;
         let html5QrCode = null;
         let currentLabelCode = '';
 
-        // 1. AUTENTICAÇÃO E INICIALIZAÇÃO
+        function getActiveSectorConfig() {
+            return SECTORS_CONFIG[state.sector] || SECTORS_CONFIG.manutencao;
+        }
+
+        function getCleanManCode(item) {
+            const raw = String(item?.codigo || item?.sku || '').trim().toUpperCase().replace(/\s+/g, '');
+            if (!raw || raw === '-' || raw === 'S/N' || raw === 'UNDEFINED') return '';
+            return raw;
+        }
+
+        function isOfficialMan(code) {
+            return /^MAN\d+$/i.test(code);
+        }
+
+        function guessCategoryFromName(name = '') {
+            const u = name.toUpperCase();
+            if (state.sector === 'producao') {
+                if (/CAIXA|FRASCO|TAMPA|ROTULO|RÓTULO|BOMBONA|SACARIA|PALLET|STRETCH|ETIQUETA/.test(u)) return 'Embalagens';
+                if (/LUVA|MASCARA|MÁSCARA|OCULOS|ÓCULOS|TOUCA|AVENTAL|BOTA|PROTETOR|EPI/.test(u)) return 'EPIs';
+                if (/ALCOOL|ÁLCOOL|DETERGENTE|SANITIZANTE|CLORO|DESINFETANTE|PANO|SABAO|LIMPEZA/.test(u)) return 'Higienização';
+                if (/MEIO|CULTURA|ANTIESPUMANTE|REAGENTE|ADITIVO| EXTRATO |GLICOSE/.test(u)) return 'Insumos';
+                return 'Utensílios';
+            }
+            if (/DISJUNTOR|CONTATOR|CABO|FIO|RELE|RELÉ|FUSIVEL|LAMPADA|ELETRODUTO|TOMADA|FONTE|MOTOR ELETRICO/.test(u)) return 'Elétrica';
+            if (/TRANSDUTOR|TRANSMISSOR|SENSOR|CLP|INVERSOR|IHM|CONTROLADOR|TERMOELEMENTO|PT100/.test(u)) return 'Eletrônica';
+            if (/VALVULA|CILINDRO|MANGUEIRA|ENGATE|CONEXAO PNEUMATICA|FILTRO REGULADOR|MANOMETRO|PRESSURIZADOR/.test(u)) return 'Pneumática';
+            if (/PARAFUSO|PORCA|ARRUELA|CHUMBADOR|PINO|REBITE|ABRACADEIRA|GRAMPO|ANEL ELASTICO/.test(u)) return 'Fixação';
+            if (/CHAVE|ALICATE|BROCA|DISCO|LIXA|FITA| COLA |SILICONE|LUVA|EPI|ESCOVA/.test(u)) return 'Ferramentas';
+            return 'Mecânica';
+        }
+
+        // ===================================================================
+        // 1. SELEÇÃO DE SETOR (ANTES DO LOGIN E DENTRO DO APP)
+        // ===================================================================
+        window.selectSector = (sectorKey) => {
+            if (!SECTORS_CONFIG[sectorKey]) return;
+            state.sector = sectorKey;
+            state.activeCategory = null;
+            localStorage.setItem('biotrop_sector', sectorKey);
+
+            const isManut = sectorKey === 'manutencao';
+            const cardManut = document.getElementById('cardSectorManut');
+            const cardProd = document.getElementById('cardSectorProd');
+            const loginCard = document.getElementById('loginCard');
+
+            if (cardManut && cardProd) {
+                cardManut.className = isManut
+                    ? "p-4 rounded-2xl border-2 border-biotrop-600 bg-biotrop-50 dark:bg-biotrop-900/30 flex flex-col items-center text-center gap-1.5 transition-all shadow-md transform scale-[1.02]"
+                    : "p-4 rounded-2xl border-2 border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-dark-bg hover:border-biotrop-500 flex flex-col items-center text-center gap-1.5 transition-all opacity-75 hover:opacity-100";
+
+                cardProd.className = !isManut
+                    ? "p-4 rounded-2xl border-2 border-teal-600 bg-teal-50 dark:bg-teal-900/30 flex flex-col items-center text-center gap-1.5 transition-all shadow-md transform scale-[1.02]"
+                    : "p-4 rounded-2xl border-2 border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-dark-bg hover:border-teal-500 flex flex-col items-center text-center gap-1.5 transition-all opacity-75 hover:opacity-100";
+                
+                loginCard.className = `bg-white dark:bg-dark-card w-full max-w-lg rounded-3xl shadow-2xl p-6 sm:p-8 border-t-8 ${isManut ? 'border-biotrop-500' : 'border-teal-500'} fade-in my-8 transition-all`;
+            }
+
+            window.setAuthMode(state.authMode);
+            applySectorVisualsToApp();
+
+            if (state.currentUser) {
+                subscribeToSectorCollections();
+                window.closeSettingsMenu();
+            }
+        };
+
+        window.toggleSectorInsideApp = () => {
+            const next = state.sector === 'manutencao' ? 'producao' : 'manutencao';
+            window.selectSector(next);
+        };
+
+        function applySectorVisualsToApp() {
+            const cfg = getActiveSectorConfig();
+            const isManut = state.sector === 'manutencao';
+
+            // Header e Badges
+            const header = document.getElementById('mainHeader');
+            header.className = `${cfg.headerBgClass} text-white shadow-lg sticky top-0 z-30 transition-colors duration-300`;
+
+            const badge = document.getElementById('headerSectorBadge');
+            badge.innerHTML = isManut
+                ? `<i class="ph-fill ph-wrench"></i> MANUTENÇÃO <i class="ph-bold ph-arrows-left-right ml-0.5"></i>`
+                : `<i class="ph-fill ph-flask"></i> PRODUÇÃO <i class="ph-bold ph-arrows-left-right ml-0.5"></i>`;
+
+            document.getElementById('headerSubtitle').textContent = cfg.subtitle;
+            document.getElementById('categoriesTitle').textContent = `Categorias • ${cfg.title}`;
+            document.getElementById('dashboardTitle').textContent = `Inteligência Gerencial • ${cfg.title}`;
+            document.getElementById('btnMainAddLabel').textContent = cfg.addBtnLabel;
+
+            // Botões no menu lateral
+            const mManut = document.getElementById('menuBtnManut');
+            const mProd = document.getElementById('menuBtnProd');
+            if (mManut && mProd) {
+                mManut.className = isManut
+                    ? "py-3 px-3 rounded-xl border-2 border-biotrop-600 bg-biotrop-50 dark:bg-biotrop-900/30 text-biotrop-800 dark:text-biotrop-300 font-black text-xs flex flex-col items-center gap-1.5"
+                    : "py-3 px-3 rounded-xl border-2 border-stone-200 dark:border-stone-700 text-stone-500 font-bold text-xs flex flex-col items-center gap-1.5";
+                mProd.className = !isManut
+                    ? "py-3 px-3 rounded-xl border-2 border-teal-600 bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 font-black text-xs flex flex-col items-center gap-1.5"
+                    : "py-3 px-3 rounded-xl border-2 border-stone-200 dark:border-stone-700 text-stone-500 font-bold text-xs flex flex-col items-center gap-1.5";
+            }
+
+            // Campos do Formulário de Cadastro/Edição
+            document.getElementById('labelFormCodigo').textContent = cfg.codeLabel;
+            document.getElementById('formCodigo').placeholder = cfg.codePlaceholder;
+            document.getElementById('labelFormAplicacao').innerHTML = `<i class="ph-fill ph-factory text-biotrop-500"></i> ${cfg.appFieldLabel}`;
+            document.getElementById('formAplicacao').placeholder = cfg.appFieldPlaceholder;
+
+            const selectCat = document.getElementById('formCategoria');
+            selectCat.innerHTML = `<option value="">Selecione...</option>` +
+                Object.entries(cfg.categories).map(([key, val]) => `<option value="${key}">${val.name}</option>`).join('');
+        }
+
+        // ===================================================================
+        // 2. AUTENTICAÇÃO (ENTRAR E CRIAR CONTA)
+        // ===================================================================
+        window.setAuthMode = (mode) => {
+            state.authMode = mode;
+            const isReg = mode === 'register';
+            const cfg = getActiveSectorConfig();
+
+            document.getElementById('registerNameField').classList.toggle('hidden', !isReg);
+            document.getElementById('registerConfirmField').classList.toggle('hidden', !isReg);
+            document.getElementById('authFeedback').classList.add('hidden');
+
+            document.getElementById('tabBtnLogin').className = !isReg
+                ? "flex-1 py-2.5 rounded-xl font-black text-sm bg-white dark:bg-dark-card text-biotrop-700 dark:text-biotrop-400 shadow transition-all"
+                : "flex-1 py-2.5 rounded-xl font-bold text-sm text-stone-500 hover:text-stone-800 dark:hover:text-white transition-all";
+            document.getElementById('tabBtnRegister').className = isReg
+                ? "flex-1 py-2.5 rounded-xl font-black text-sm bg-white dark:bg-dark-card text-biotrop-700 dark:text-biotrop-400 shadow transition-all"
+                : "flex-1 py-2.5 rounded-xl font-bold text-sm text-stone-500 hover:text-stone-800 dark:hover:text-white transition-all";
+
+            const btn = document.getElementById('btnAuthSubmit');
+            btn.className = `w-full py-4 font-black text-white ${state.sector === 'manutencao' ? 'bg-biotrop-700 hover:bg-biotrop-600' : 'bg-teal-700 hover:bg-teal-600'} rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-2`;
+            btn.innerHTML = isReg
+                ? `<i class="ph-bold ph-user-plus text-xl"></i> Criar Conta (${cfg.title})`
+                : `<i class="ph-bold ph-sign-in text-xl"></i> Entrar em ${cfg.title}`;
+        };
+
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 state.currentUser = user;
+                const displayName = user.displayName || user.email.split('@')[0];
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('mainApp').classList.remove('hidden');
                 document.getElementById('mainApp').classList.add('flex');
-                document.getElementById('userEmailDisplay').textContent = user.email;
-                document.getElementById('userEmailMobile').textContent = user.email;
+                document.getElementById('userEmailDisplay').textContent = displayName;
+                document.getElementById('userEmailMobile').textContent = `${displayName} (${user.email})`;
                 initApp();
             } else {
                 state.currentUser = null;
                 document.getElementById('loginScreen').classList.remove('hidden');
                 document.getElementById('mainApp').classList.add('hidden');
                 document.getElementById('mainApp').classList.remove('flex');
+                window.selectSector(state.sector);
             }
         });
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('btnLogin');
-            btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Autenticando...';
-            try {
-                await signInWithEmailAndPassword(auth, document.getElementById('loginEmail').value, document.getElementById('loginPwd').value);
-            } catch (error) {
-                const errEl = document.getElementById('loginError');
-                errEl.textContent = "Acesso Negado: Credenciais inválidas.";
-                errEl.classList.remove('hidden');
-            } finally {
-                btn.innerHTML = '<i class="ph-bold ph-sign-in"></i> Entrar';
+            const email = document.getElementById('authEmail').value.trim();
+            const pwd = document.getElementById('authPwd').value;
+            const feedback = document.getElementById('authFeedback');
+            const btn = document.getElementById('btnAuthSubmit');
+            feedback.classList.add('hidden');
+
+            if (state.authMode === 'register') {
+                const pwdConfirm = document.getElementById('authPwdConfirm').value;
+                const name = document.getElementById('authName').value.trim();
+                if (pwd !== pwdConfirm) {
+                    feedback.textContent = "As senhas digitadas não conferem.";
+                    feedback.classList.remove('hidden');
+                    return;
+                }
+                btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Criando conta...';
+                try {
+                    const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+                    if (name) await updateProfile(cred.user, { displayName: name });
+                } catch (err) {
+                    let msg = "Não foi possível criar a conta.";
+                    if (err.code === 'auth/email-already-in-use') msg = "Este e-mail já possui conta cadastrada. Clique na aba 'Entrar'.";
+                    else if (err.code === 'auth/weak-password') msg = "A senha deve ter pelo menos 6 caracteres.";
+                    feedback.textContent = msg;
+                    feedback.classList.remove('hidden');
+                } finally {
+                    window.setAuthMode('register');
+                }
+            } else {
+                btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Autenticando...';
+                try {
+                    await signInWithEmailAndPassword(auth, email, pwd);
+                } catch (err) {
+                    feedback.textContent = "E-mail ou senha incorretos. Se for seu primeiro acesso, clique em 'Criar Conta'.";
+                    feedback.classList.remove('hidden');
+                } finally {
+                    window.setAuthMode('login');
+                }
             }
         });
 
         window.logout = () => signOut(auth);
 
-        function initApp() {
-            // Load Preferences
+        // ===================================================================
+        // 3. BANCO LOCAL INDEXEDDB PARA OS 11.099 MANS DO DYNAMICS
+        // ===================================================================
+        function openLocalCatalogDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open('BiotropDynamicsCatalogDB', 1);
+                req.onupgradeneeded = (e) => {
+                    const idb = e.target.result;
+                    if (!idb.objectStoreNames.contains('catalog')) {
+                        idb.createObjectStore('catalog', { keyPath: 'man' });
+                    }
+                };
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function saveDynamicsCatalogToIDB(items) {
+            const idb = await openLocalCatalogDB();
+            return new Promise((resolve, reject) => {
+                const tx = idb.transaction('catalog', 'readwrite');
+                const store = tx.objectStore('catalog');
+                store.clear();
+                items.forEach(item => store.put(item));
+                tx.oncomplete = () => resolve();
+                tx.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function loadDynamicsCatalogFromIDB() {
+            try {
+                const idb = await openLocalCatalogDB();
+                return new Promise((resolve) => {
+                    const tx = idb.transaction('catalog', 'readonly');
+                    const store = tx.objectStore('catalog');
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => resolve([]);
+                });
+            } catch {
+                return [];
+            }
+        }
+
+        function updateDynamicsStatusUI() {
+            const statusEl = document.getElementById('dynamicsStatusText');
+            if (state.dynamicsCatalog.length > 0) {
+                statusEl.className = "text-xs font-black text-biotrop-700 dark:text-biotrop-400 pt-1 flex items-center gap-1.5";
+                statusEl.innerHTML = `<i class="ph-fill ph-check-circle text-base"></i> Catálogo Dynamics Ativo: ${state.dynamicsCatalog.length.toLocaleString('pt-BR')} códigos prontos para consulta!`;
+            } else {
+                statusEl.className = "text-xs font-bold text-amber-600 dark:text-amber-400 pt-1";
+                statusEl.textContent = "Carregue a planilha Itens_...xlsx do Dynamics para habilitar as sugestões automáticas.";
+            }
+        }
+
+        // ===================================================================
+        // 4. INICIALIZAÇÃO E ASSINATURA DINÂMICA POR SETOR NO FIREBASE
+        // ===================================================================
+        let listenersInitialized = false;
+
+        async function initApp() {
             if(localStorage.getItem('theme') === 'dark') window.setTheme('dark');
             if(localStorage.getItem('viewMode')) window.setViewMode(localStorage.getItem('viewMode'));
 
-            // Escuta Estoque (Real-time)
-            onSnapshot(collection(db, 'estoque'), (snapshot) => {
+            applySectorVisualsToApp();
+            state.dynamicsCatalog = await loadDynamicsCatalogFromIDB();
+            updateDynamicsStatusUI();
+
+            subscribeToSectorCollections();
+
+            if (!listenersInitialized) {
+                listenersInitialized = true;
+                setupEventListeners();
+            }
+        }
+
+        function subscribeToSectorCollections() {
+            if (unsubscribeStock) unsubscribeStock();
+            if (unsubscribeLogs) unsubscribeLogs();
+
+            const cfg = getActiveSectorConfig();
+            updateConnectionStatus(true);
+
+            // Escuta a coleção de Estoque do Setor Ativo ('estoque' ou 'estoque_producao')
+            unsubscribeStock = onSnapshot(collection(db, cfg.stockCollection), (snapshot) => {
                 state.inventory = [];
                 let emRuptura = 0;
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    state.inventory.push({ id: doc.id, ...data });
+                let semMan = 0;
+
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const cleanCode = getCleanManCode(data);
+                    if (!isOfficialMan(cleanCode)) semMan++;
                     if ((parseInt(data.quantidade) || 0) <= (parseInt(data.quantidadeMinima) || 0)) emRuptura++;
+                    state.inventory.push({ id: docSnap.id, ...data, codigoLimpo: cleanCode });
                 });
-                state.inventory.sort((a, b) => a.nome.localeCompare(b.nome));
+
+                state.inventory.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
                 
-                // KPIs
                 document.getElementById('kpiTotal').textContent = state.inventory.length;
                 document.getElementById('kpiRuptura').textContent = emRuptura;
+                document.getElementById('kpiSemMan').textContent = semMan;
+
+                const badge = document.getElementById('badgePendingMan');
+                badge.textContent = semMan;
+                badge.classList.toggle('hidden', semMan === 0);
                 
                 renderCategories();
                 renderInventory();
+                renderUnlinkedItems();
                 updateConnectionStatus(true);
-            }, (error) => updateConnectionStatus(false));
 
-            // Escuta Logs (Últimas 30 movimentações)
-            onSnapshot(query(collection(db, 'historico'), orderBy('data', 'desc'), limit(30)), (snapshot) => {
+                if (state.quickAdjustItemId) {
+                    const updatedItem = state.inventory.find(i => i.id === state.quickAdjustItemId);
+                    if (updatedItem) document.getElementById('qaCurrentQty').textContent = parseInt(updatedItem.quantidade) || 0;
+                }
+            }, () => updateConnectionStatus(false));
+
+            // Escuta a coleção de Histórico do Setor Ativo ('historico' ou 'historico_producao')
+            unsubscribeLogs = onSnapshot(query(collection(db, cfg.logsCollection), orderBy('data', 'desc'), limit(30)), (snapshot) => {
                 const tbody = document.getElementById('logsTableBody');
                 tbody.innerHTML = '';
                 let movHoje = 0;
                 const hoje = new Date().toDateString();
 
-                snapshot.forEach((doc) => {
-                    const log = doc.data();
+                snapshot.forEach((docSnap) => {
+                    const log = docSnap.data();
                     const logDate = new Date(log.data);
                     if (logDate.toDateString() === hoje) movHoje++;
 
-                    const tipo = log.alteracao > 0 ? `<span class="text-biotrop-600 bg-biotrop-100 px-2 py-1 rounded font-bold">+${log.alteracao} (Entrada)</span>` : `<span class="text-red-600 bg-red-100 px-2 py-1 rounded font-bold">${log.alteracao} (Saída)</span>`;
+                    const tipo = log.alteracao > 0 
+                        ? `<span class="text-biotrop-700 bg-biotrop-100 px-2.5 py-1 rounded-lg font-black text-xs">+${log.alteracao} (Entrada)</span>` 
+                        : log.alteracao < 0
+                        ? `<span class="text-red-600 bg-red-100 px-2.5 py-1 rounded-lg font-black text-xs">${log.alteracao} (Baixa)</span>`
+                        : `<span class="text-stone-600 bg-stone-100 px-2.5 py-1 rounded-lg font-bold text-xs">${log.nota || 'Cadastro'}</span>`;
                     
                     tbody.innerHTML += `
                         <tr class="border-b border-stone-100 dark:border-dark-border hover:bg-stone-50 dark:hover:bg-stone-800/30 transition">
-                            <td class="p-4 pl-6 whitespace-nowrap">${logDate.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}</td>
-                            <td class="p-4 font-bold text-stone-800 dark:text-stone-200">${log.usuario.split('@')[0]}</td>
-                            <td class="p-4">${log.nomeItem}</td>
+                            <td class="p-4 pl-6 whitespace-nowrap text-xs">${logDate.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})}</td>
+                            <td class="p-4 font-bold text-stone-800 dark:text-stone-200">${(log.usuario || '').split('@')[0]}</td>
+                            <td class="p-4"><span class="font-black text-biotrop-700 dark:text-biotrop-400 mr-1.5">${log.codigo || ''}</span>${log.nomeItem}</td>
                             <td class="p-4 text-center pr-6">${tipo}</td>
                         </tr>
                     `;
                 });
                 document.getElementById('kpiMovimentos').textContent = movHoje;
             });
-            
-            setupEventListeners();
         }
 
         function updateConnectionStatus(isConnected) {
             const el = document.getElementById('connectionStatus');
+            const cfg = getActiveSectorConfig();
             el.className = isConnected 
                 ? "hidden md:flex items-center gap-2 text-xs font-bold text-biotrop-700 bg-biotrop-50 dark:bg-biotrop-900/20 dark:text-biotrop-400 px-3 py-1.5 rounded-full border border-biotrop-200 dark:border-biotrop-800 shadow-sm"
                 : "hidden md:flex items-center gap-2 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-full border border-red-200 shadow-sm";
-            el.innerHTML = isConnected ? `<i class="ph-fill ph-check-circle"></i> Online` : `<i class="ph-fill ph-warning-circle"></i> Offline`;
+            el.innerHTML = isConnected ? `<i class="ph-fill ph-check-circle"></i> ${cfg.title} Online` : `<i class="ph-fill ph-warning-circle"></i> Offline`;
         }
 
-        // 2. RENDERIZAÇÃO E FILTROS
+        // ===================================================================
+        // 5. RENDERIZAÇÃO DO ESTOQUE E CONCILIAÇÃO DE MANS
+        // ===================================================================
         function renderCategories() {
             const container = document.getElementById('categoriesContainer');
+            const categoriesMap = getActiveSectorConfig().categories;
             container.innerHTML = Object.entries(categoriesMap).map(([key, cat]) => {
                 const isActive = state.activeCategory === key;
                 return `
                     <button onclick="window.toggleCategory('${key}')" class="flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all ${isActive ? 'border-biotrop-600 bg-biotrop-50 dark:bg-biotrop-900/20 shadow-md scale-105' : 'bg-white dark:bg-dark-card border-stone-200 dark:border-dark-border hover:border-biotrop-300'}">
-                        <div class="p-2 rounded-xl mb-2 ${cat.color}"><i class="ph-fill ${cat.icon} text-2xl"></i></div>
-                        <span class="text-[10px] md:text-xs font-bold text-center text-stone-700 dark:text-stone-300 w-full truncate">${cat.name}</span>
+                        <div class="p-2 rounded-xl mb-1.5 ${cat.color}"><i class="ph-fill ${cat.icon} text-2xl"></i></div>
+                        <span class="text-[11px] font-bold text-center text-stone-700 dark:text-stone-300 w-full truncate">${cat.name}</span>
                     </button>
                 `;
             }).join('');
@@ -702,15 +1215,23 @@
         function renderInventory() {
             const container = document.getElementById('inventoryContainer');
             const emptyState = document.getElementById('emptyState');
+            const categoriesMap = getActiveSectorConfig().categories;
             
             const filtered = state.inventory.filter(item => {
-                const term = state.searchTerm.toLowerCase();
-                const matchSearch = term === '' || (item.nome||'').toLowerCase().includes(term) || (item.codigo||'').toLowerCase().includes(term) || (item.localizacao||'').toLowerCase().includes(term) || (item.aplicacao||'').toLowerCase().includes(term);
+                const term = state.searchTerm.toLowerCase().trim();
+                const code = item.codigoLimpo.toLowerCase();
+                const matchSearch = term === '' || 
+                    (item.nome || '').toLowerCase().includes(term) || 
+                    code.includes(term.replace(/\s+/g, '')) || 
+                    (item.especificacao || '').toLowerCase().includes(term) ||
+                    (item.localizacao || '').toLowerCase().includes(term) || 
+                    (item.aplicacao || '').toLowerCase().includes(term);
                 const matchCat = !state.activeCategory || item.categoria === state.activeCategory;
-                return matchSearch && matchCat;
+                const matchNoMan = !state.onlyNoMan || !isOfficialMan(item.codigoLimpo);
+                return matchSearch && matchCat && matchNoMan;
             });
 
-            document.getElementById('inventoryCount').textContent = `Itens Encontrados (${filtered.length})`;
+            document.getElementById('inventoryCount').textContent = `Itens em ${getActiveSectorConfig().title} (${filtered.length})`;
 
             if (filtered.length === 0) {
                 container.innerHTML = '';
@@ -719,73 +1240,79 @@
             }
             emptyState.classList.add('hidden');
             
-            container.className = state.viewMode === 'list' ? "flex flex-col gap-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
+            container.className = state.viewMode === 'list' ? "flex flex-col gap-3.5" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
             
             container.innerHTML = filtered.map(item => {
                 const qty = parseInt(item.quantidade) || 0;
                 const minQty = parseInt(item.quantidadeMinima) || 0;
                 const isLow = qty <= minQty;
-                const catData = categoriesMap[item.categoria] || { icon: 'ph-package', color: 'bg-stone-200' };
-                const appVisual = (item.aplicacao && item.aplicacao !== '-') ? `<span class="bg-biotrop-100 dark:bg-biotrop-900/30 text-biotrop-800 dark:text-biotrop-400 text-[10px] font-bold px-2 py-0.5 rounded border border-biotrop-200 dark:border-biotrop-800"><i class="ph-bold ph-factory"></i> ${item.aplicacao}</span>` : '';
+                const catData = categoriesMap[item.categoria] || { icon: 'ph-package', color: 'bg-stone-200 text-stone-700' };
+                
+                const displayCode = item.codigoLimpo || 'SEM-COD';
+                const hasOfficialMan = isOfficialMan(displayCode);
+                const codeBadge = hasOfficialMan
+                    ? `<span class="bg-biotrop-100 dark:bg-biotrop-900/40 text-biotrop-800 dark:text-biotrop-300 text-[11px] font-black px-2.5 py-0.5 rounded-md tracking-wider uppercase">${displayCode}</span>`
+                    : `<span onclick="window.switchTab('dynamics')" class="cursor-pointer bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-[10px] font-black px-2 py-0.5 rounded-md uppercase inline-flex items-center gap-1" title="Clique para vincular um código oficial do Dynamics"><i class="ph-bold ph-tag"></i> ${displayCode}</span>`;
+
+                const appVisual = (item.aplicacao && item.aplicacao !== '-') 
+                    ? `<span class="bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-[10px] font-bold px-2 py-0.5 rounded border border-stone-200 dark:border-stone-700"><i class="ph-bold ph-factory"></i> ${item.aplicacao}</span>` : '';
 
                 if (state.viewMode === 'list') {
-                    // MODO LISTA
                     return `
                         <div class="relative bg-white dark:bg-dark-card rounded-2xl p-4 border-2 transition-all flex flex-col md:flex-row items-center gap-4 ${isLow ? 'border-red-400 bg-red-50/40 dark:bg-red-900/10' : 'border-stone-200 dark:border-dark-border'}">
-                            ${isLow ? `<div class="absolute -top-2 -left-2 w-4 h-4 rounded-full bg-red-500 shadow animate-pulse"></div>` : ''}
                             <div class="flex items-center gap-4 flex-1 w-full min-w-0">
-                                <div class="w-12 h-12 rounded-xl flex items-center justify-center ${catData.color}"><i class="ph-fill ${catData.icon} text-2xl"></i></div>
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${catData.color}"><i class="ph-fill ${catData.icon} text-2xl"></i></div>
                                 <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 mb-0.5"><h3 class="text-lg font-black text-stone-800 dark:text-white truncate">${item.nome}</h3> ${appVisual}</div>
-                                    <p class="text-xs text-stone-500 dark:text-stone-400 font-bold uppercase truncate">MAN: ${item.codigo||'-'} • LOC: <span class="text-amber-600 dark:text-amber-400">${item.localizacao}</span></p>
+                                    <div class="flex flex-wrap items-center gap-2 mb-1">${codeBadge} ${appVisual}</div>
+                                    <h3 class="text-base font-black text-stone-800 dark:text-white truncate">${item.nome}</h3>
+                                    <p class="text-xs text-amber-700 dark:text-amber-400 font-bold truncate"><i class="ph-fill ph-map-pin"></i> ${item.localizacao}</p>
                                 </div>
                             </div>
-                            <div class="flex items-center justify-between w-full md:w-auto gap-4 mt-3 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-stone-100 dark:border-dark-border">
-                                <div class="text-center md:text-right min-w-[70px]">
+                            <div class="flex items-center justify-between w-full md:w-auto gap-4 pt-3 md:pt-0 border-t md:border-t-0 border-stone-100 dark:border-dark-border">
+                                <div class="text-left md:text-right min-w-[70px]">
                                     <p class="text-2xl font-black ${isLow ? 'text-red-600' : 'text-stone-800 dark:text-white'} leading-none">${qty} <span class="text-xs text-stone-400">${item.unidade||'un'}</span></p>
+                                    <p class="text-[10px] text-stone-400 font-bold">mín ${minQty}</p>
                                 </div>
-                                <div class="flex gap-1">
-                                    <button onclick="window.openQRLabelModal('${item.id}')" title="Gerar Etiqueta QR Code" class="w-10 h-10 bg-purple-50 dark:bg-purple-900/20 text-purple-600 rounded-xl flex items-center justify-center hover:bg-purple-600 hover:text-white transition"><i class="ph-bold ph-qr-code text-xl"></i></button>
+                                <div class="flex gap-1.5">
+                                    <button onclick="window.openQRLabelModal('${item.id}')" title="Etiqueta QR Code (${displayCode})" class="w-10 h-10 bg-purple-50 dark:bg-purple-900/20 text-purple-600 rounded-xl flex items-center justify-center hover:bg-purple-600 hover:text-white transition"><i class="ph-bold ph-qr-code text-xl"></i></button>
                                     <button onclick="window.openEditModal('${item.id}')" title="Editar" class="w-10 h-10 bg-sky-50 dark:bg-sky-900/20 text-sky-600 rounded-xl flex items-center justify-center hover:bg-sky-500 hover:text-white transition"><i class="ph-bold ph-pencil-simple text-xl"></i></button>
-                                    <button onclick="window.updateQuantity('${item.id}', -1)" title="Dar Baixa (-1)" class="w-10 h-10 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="ph-bold ph-minus text-xl"></i></button>
-                                    <button onclick="window.updateQuantity('${item.id}', 1)" title="Adicionar (+1)" class="w-10 h-10 bg-biotrop-50 dark:bg-biotrop-900/20 text-biotrop-700 rounded-xl flex items-center justify-center hover:bg-biotrop-600 hover:text-white transition"><i class="ph-bold ph-plus text-xl"></i></button>
+                                    <button onclick="window.updateQuantity('${item.id}', -1)" title="Subtrair 1" class="w-11 h-10 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition font-black"><i class="ph-bold ph-minus text-xl"></i></button>
+                                    <button onclick="window.updateQuantity('${item.id}', 1)" title="Somar 1" class="w-11 h-10 bg-biotrop-100 dark:bg-biotrop-900/30 text-biotrop-700 rounded-xl flex items-center justify-center hover:bg-biotrop-600 hover:text-white transition font-black"><i class="ph-bold ph-plus text-xl"></i></button>
                                 </div>
                             </div>
                         </div>
                     `;
                 }
 
-                // MODO GRID (Cards)
                 return `
                     <div class="relative bg-white dark:bg-dark-card rounded-3xl p-6 border-2 transition-all hover:shadow-xl flex flex-col h-full ${isLow ? 'border-red-400 bg-red-50/40 dark:bg-red-900/10' : 'border-stone-200 dark:border-dark-border'}">
-                        ${isLow ? `<div class="absolute -top-3 -right-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-black shadow z-10 animate-pulse">BAIXO</div>` : ''}
+                        ${isLow ? `<div class="absolute -top-3 -right-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-black shadow z-10 animate-pulse">ESTOQUE BAIXO</div>` : ''}
                         <div class="flex gap-4 mb-3">
-                            <div class="w-16 h-16 rounded-2xl flex items-center justify-center ${catData.color}"><i class="ph-fill ${catData.icon} text-3xl"></i></div>
+                            <div class="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${catData.color}"><i class="ph-fill ${catData.icon} text-3xl"></i></div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-[10px] font-black text-stone-500 dark:text-stone-400 uppercase tracking-widest truncate">MAN: ${item.codigo||'-'}</p>
-                                <h3 class="text-xl font-black text-stone-800 dark:text-white leading-tight mb-1 line-clamp-2">${item.nome}</h3>
-                                <p class="text-xs font-medium text-stone-500 dark:text-stone-400 truncate mb-1">${item.especificacao || 'Sem especificação'}</p>
-                                ${appVisual}
+                                <div class="flex flex-wrap items-center gap-1.5 mb-1">${codeBadge} ${appVisual}</div>
+                                <h3 class="text-lg font-black text-stone-800 dark:text-white leading-snug mb-1 line-clamp-2" title="${item.nome}">${item.nome}</h3>
+                                <p class="text-xs font-medium text-stone-500 dark:text-stone-400 truncate">${item.especificacao || 'Sem especificação'}</p>
                             </div>
                         </div>
-                        <div class="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200/60 dark:border-amber-800/50 rounded-xl p-3 mb-5 mt-2 flex items-start gap-3">
-                            <i class="ph-fill ph-map-pin text-2xl text-amber-500 flex-shrink-0"></i>
-                            <div>
-                                <p class="text-[10px] text-amber-700/80 dark:text-amber-500 font-black uppercase mb-0.5 tracking-wider">Localização</p>
-                                <p class="text-sm font-bold text-amber-900 dark:text-amber-100">${item.localizacao}</p>
+                        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200/80 dark:border-amber-800/50 rounded-xl p-3 mb-5 mt-2 flex items-center gap-2.5">
+                            <i class="ph-fill ph-map-pin text-xl text-amber-500 shrink-0"></i>
+                            <div class="min-w-0">
+                                <p class="text-[10px] text-amber-700/80 dark:text-amber-400 font-black uppercase tracking-wider">Localização Física</p>
+                                <p class="text-xs font-bold text-amber-900 dark:text-amber-100 truncate">${item.localizacao}</p>
                             </div>
                         </div>
-                        <div class="mt-auto pt-5 border-t-2 border-stone-100 dark:border-dark-border flex items-center justify-between gap-2">
+                        <div class="mt-auto pt-4 border-t-2 border-stone-100 dark:border-dark-border flex items-center justify-between gap-2">
                             <div>
-                                <p class="text-[10px] text-stone-400 font-black uppercase tracking-wider mb-1">Estoque</p>
-                                <p class="text-4xl font-black ${isLow ? 'text-red-600' : 'text-stone-800 dark:text-white'}">${qty} <span class="text-sm font-medium text-stone-400">${item.unidade||'un'}</span></p>
+                                <p class="text-[10px] text-stone-400 font-black uppercase tracking-wider">Saldo</p>
+                                <p class="text-3xl font-black ${isLow ? 'text-red-600' : 'text-stone-800 dark:text-white'}">${qty} <span class="text-xs font-bold text-stone-400">${item.unidade||'un'} / mín ${minQty}</span></p>
                             </div>
-                            <div class="flex gap-1.5 flex-wrap justify-end">
-                                <button onclick="window.openQRLabelModal('${item.id}')" title="Etiqueta QR Code do MAN" class="w-10 h-10 md:w-11 md:h-11 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center hover:bg-purple-600 hover:text-white transition"><i class="ph-bold ph-qr-code text-xl"></i></button>
-                                <button onclick="window.openDeleteModal('${item.id}', '${item.nome.replace(/'/g, "\\'")}')" title="Excluir" class="w-10 h-10 md:w-11 md:h-11 bg-stone-100 dark:bg-stone-800 text-stone-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="ph-bold ph-trash text-xl"></i></button>
-                                <button onclick="window.openEditModal('${item.id}')" title="Editar" class="w-10 h-10 md:w-11 md:h-11 bg-sky-50 dark:bg-sky-900/20 text-sky-600 rounded-xl flex items-center justify-center hover:bg-sky-500 hover:text-white transition"><i class="ph-bold ph-pencil-simple text-xl"></i></button>
-                                <button onclick="window.updateQuantity('${item.id}', -1)" title="Subtrair 1" class="w-10 h-10 md:w-11 md:h-11 bg-red-100 dark:bg-red-900/20 text-red-600 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="ph-bold ph-minus text-xl"></i></button>
-                                <button onclick="window.updateQuantity('${item.id}', 1)" title="Adicionar 1" class="w-10 h-10 md:w-11 md:h-11 bg-biotrop-100 dark:bg-biotrop-900/20 text-biotrop-700 rounded-xl flex items-center justify-center hover:bg-biotrop-600 hover:text-white transition"><i class="ph-bold ph-plus text-xl"></i></button>
+                            <div class="flex gap-1.5">
+                                <button onclick="window.openQRLabelModal('${item.id}')" title="Gerar QR Code (${displayCode})" class="w-10 h-11 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-xl flex items-center justify-center hover:bg-purple-600 hover:text-white transition"><i class="ph-bold ph-qr-code text-xl"></i></button>
+                                <button onclick="window.openEditModal('${item.id}')" title="Editar Item" class="w-10 h-11 bg-sky-50 dark:bg-sky-900/20 text-sky-600 rounded-xl flex items-center justify-center hover:bg-sky-500 hover:text-white transition"><i class="ph-bold ph-pencil-simple text-xl"></i></button>
+                                <button onclick="window.openDeleteModal('${item.id}', '${(item.nome||'').replace(/'/g, "\\'")}')" title="Excluir" class="w-10 h-11 bg-stone-100 dark:bg-stone-800 text-stone-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition"><i class="ph-bold ph-trash text-xl"></i></button>
+                                <button onclick="window.updateQuantity('${item.id}', -1)" title="Dar Baixa (-1)" class="w-12 h-11 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white active:scale-90 transition"><i class="ph-bold ph-minus text-2xl"></i></button>
+                                <button onclick="window.updateQuantity('${item.id}', 1)" title="Adicionar (+1)" class="w-12 h-11 bg-biotrop-100 dark:bg-biotrop-900/30 text-biotrop-700 rounded-xl flex items-center justify-center hover:bg-biotrop-600 hover:text-white active:scale-90 transition"><i class="ph-bold ph-plus text-2xl"></i></button>
                             </div>
                         </div>
                     </div>
@@ -793,34 +1320,120 @@
             }).join('');
         }
 
-        // 3. SISTEMA DE QR CODE (LEITURA POR CÂMERA E ETIQUETAS BASEADAS NO MAN)
-        window.startQRScanner = (mode = 'global') => {
+        function findBestDynamicsMatches(itemName, itemSpecs) {
+            if (!state.dynamicsCatalog.length) return [];
+            const rawWords = `${itemName || ''} ${itemSpecs || ''}`
+                .toUpperCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .split(/[^A-Z0-9]+/)
+                .filter(w => w.length >= 3 && !['PARA', 'COM', 'SEM', 'TIPO', 'PECA'].includes(w));
+
+            if (rawWords.length === 0) return [];
+
+            const scored = [];
+            for (const d of state.dynamicsCatalog) {
+                let score = 0;
+                for (const w of rawWords) {
+                    if (d.searchStr.includes(w)) score += (w.length >= 5 ? 3 : 1);
+                }
+                if (score > 0) scored.push({ item: d, score });
+            }
+            scored.sort((a, b) => b.score - a.score);
+            return scored.slice(0, 3).map(s => s.item);
+        }
+
+        function renderUnlinkedItems() {
+            const container = document.getElementById('unlinkedItemsList');
+            const unlinked = state.inventory.filter(i => !isOfficialMan(i.codigoLimpo));
+
+            if (unlinked.length === 0) {
+                container.innerHTML = `
+                    <div class="p-8 text-center bg-biotrop-50 dark:bg-biotrop-900/10 rounded-2xl border border-biotrop-200 dark:border-biotrop-800/40">
+                        <i class="ph-fill ph-check-circle text-4xl text-biotrop-600 mb-2 block"></i>
+                        <p class="font-black text-stone-800 dark:text-white">Todos os itens deste setor já possuem um código oficial vinculado!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = unlinked.map(item => {
+                const suggestions = findBestDynamicsMatches(item.nome, item.especificacao);
+                const suggestionsHtml = suggestions.length > 0
+                    ? suggestions.map(s => `
+                        <button type="button" onclick="window.linkManToItem('${item.id}', '${s.man}', '${s.nome.replace(/'/g, "\\'")}')" class="text-left p-2.5 rounded-xl bg-biotrop-50 dark:bg-biotrop-900/20 hover:bg-biotrop-600 hover:text-white border border-biotrop-200 dark:border-biotrop-800 transition group flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <span class="font-black text-xs text-biotrop-700 dark:text-biotrop-300 group-hover:text-white mr-1.5">${s.man}</span>
+                                <span class="text-xs font-medium truncate">${s.nome}</span>
+                            </div>
+                            <span class="shrink-0 text-[10px] font-black uppercase bg-biotrop-600 text-white group-hover:bg-white group-hover:text-biotrop-800 px-2.5 py-1 rounded-lg">Vincular</span>
+                        </button>
+                    `).join('')
+                    : `<p class="text-xs text-stone-400 italic">Carregue a planilha do Dynamics acima ou digite o código manualmente ao lado.</p>`;
+
+                return `
+                    <div class="p-4 rounded-2xl border-2 border-amber-200 dark:border-amber-800/50 bg-amber-50/30 dark:bg-dark-bg flex flex-col lg:flex-row gap-4 justify-between">
+                        <div class="space-y-1 lg:w-1/3">
+                            <span class="text-[10px] font-black uppercase bg-amber-200 text-amber-900 px-2 py-0.5 rounded">Atual: ${item.codigoLimpo || 'Sem Código'}</span>
+                            <h4 class="font-black text-base text-stone-800 dark:text-white">${item.nome}</h4>
+                            <p class="text-xs text-stone-500">${item.especificacao || 'Sem especificação'} • Local: ${item.localizacao}</p>
+                            <div class="flex gap-2 pt-2">
+                                <input type="text" id="manualLink_${item.id}" placeholder="Digitar Cód (ex: MAN1187)" class="p-2 text-xs font-bold uppercase border rounded-lg bg-white dark:bg-dark-card dark:border-stone-700 w-44 outline-none focus:border-biotrop-500" />
+                                <button onclick="window.linkCustomManToItem('${item.id}')" class="px-3 py-2 bg-stone-800 text-white text-xs font-bold rounded-lg hover:bg-biotrop-600 transition">Salvar</button>
+                            </div>
+                        </div>
+                        <div class="lg:w-2/3 flex flex-col justify-center space-y-1.5">
+                            <p class="text-[11px] font-black uppercase text-stone-500">Sugestões Encontradas no Dynamics:</p>
+                            <div class="grid grid-cols-1 gap-1.5">${suggestionsHtml}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.linkManToItem = async (itemId, manCode, officialName) => {
+            const cfg = getActiveSectorConfig();
+            const updateName = confirm(`Vincular o código ${manCode} a este item?\n\nClique em OK para também atualizar o nome para o padrão do Dynamics:\n"${officialName}"`);
+            const payload = { codigo: manCode.toUpperCase().replace(/\s+/g, '') };
+            if (updateName && officialName) payload.nome = officialName;
+            await updateDoc(doc(db, cfg.stockCollection, itemId), payload);
+        };
+
+        window.linkCustomManToItem = async (itemId) => {
+            const cfg = getActiveSectorConfig();
+            const input = document.getElementById(`manualLink_${itemId}`);
+            const code = (input?.value || '').trim().toUpperCase().replace(/\s+/g, '');
+            if (!code) return alert("Digite o código para salvar.");
+            await updateDoc(doc(db, cfg.stockCollection, itemId), { codigo: code });
+        };
+
+        // ===================================================================
+        // 6. SCANNER QR CODE E MODAL DE MOVIMENTAÇÃO EXPRESSA (+ / -)
+        // ===================================================================
+        window.startQRScanner = (mode = 'quick') => {
+            state.scannerMode = mode;
+            document.getElementById('qrNotFoundBox').classList.add('hidden');
+            document.getElementById('manualQrInput').value = '';
+            window.closeQuickAdjustModal();
+
             const modal = document.getElementById('qrScannerModal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
 
-            const subtitle = document.getElementById('qrScannerSubtitle');
-            subtitle.textContent = mode === 'form' 
-                ? "Escaneie o QR Code para preencher o Código MAN" 
-                : "Escaneie o QR Code para buscar ou cadastrar a peça";
-
-            if (html5QrCode) {
-                html5QrCode.clear();
-            }
+            if (html5QrCode) html5QrCode.clear();
             html5QrCode = new Html5Qrcode("qrReader");
 
             html5QrCode.start(
                 { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 230, height: 230 } },
-                (decodedText) => {
-                    window.stopQRScanner();
-                    handleScannedMAN(decodedText.trim(), mode);
-                },
-                (errorMessage) => { /* Ignora frames sem QR Code */ }
-            ).catch((err) => {
-                console.error("Erro ao iniciar câmera:", err);
-                alert("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
-                window.stopQRScanner();
+                { fps: 12, qrbox: { width: 220, height: 220 } },
+                (decodedText) => processScannedCode(decodedText.trim()),
+                () => {}
+            ).catch(() => {
+                html5QrCode.start(
+                    { facingMode: "user" },
+                    { fps: 10, qrbox: { width: 220, height: 220 } },
+                    (decodedText) => processScannedCode(decodedText.trim()),
+                    () => {}
+                ).catch(() => {});
             });
         };
 
@@ -841,74 +1454,93 @@
             }
         };
 
-        function handleScannedMAN(rawText, mode) {
-            // Suporta tanto QR Code puro (ex: "MAN00123") quanto QR Code estruturado separado por '|'
-            // Formato estruturado opcional: MAN|Nome|Categoria|Especificacao|Localizacao
+        window.triggerManualQrCode = () => {
+            const val = document.getElementById('manualQrInput').value.trim();
+            if (val) processScannedCode(val);
+        };
+
+        function processScannedCode(rawText) {
             const parts = rawText.split('|').map(p => p.trim());
-            const manCode = parts[0].toUpperCase();
+            const scannedCode = parts[0].toUpperCase().replace(/\s+/g, '');
 
-            // Procura se já existe um item com esse código MAN no estoque
-            const existingItem = state.inventory.find(
-                i => (i.codigo || '').toUpperCase() === manCode
-            );
+            const existingItem = state.inventory.find(i => i.codigoLimpo === scannedCode);
 
-            if (mode === 'form') {
-                // Se escaneou de dentro do modal de cadastro/edição
-                if (existingItem && !document.getElementById('formItemId').value) {
-                    alert(`O código ${manCode} já está cadastrado como "${existingItem.nome}". Carregando dados para edição!`);
-                    window.openEditModal(existingItem.id);
-                    return;
-                }
-                document.getElementById('formCodigo').value = manCode;
-                if (parts[1] && !document.getElementById('formNome').value) document.getElementById('formNome').value = parts[1];
-                if (parts[2] && !document.getElementById('formCategoria').value) document.getElementById('formCategoria').value = parts[2];
-                if (parts[3] && !document.getElementById('formSpecs').value) document.getElementById('formSpecs').value = parts[3];
-                if (parts[4] && !document.getElementById('formLocal').value) document.getElementById('formLocal').value = parts[4];
-                document.getElementById('formNome').focus();
+            if (state.scannerMode === 'form') {
+                window.stopQRScanner();
+                document.getElementById('formCodigo').value = scannedCode;
+                autofillModalFromDynamics(scannedCode);
                 return;
             }
 
-            // Modo Global (botão na barra de busca ou botão flutuante)
             if (existingItem) {
-                // Item já existe -> Filtra imediatamente na tela para baixa rápida
-                document.getElementById('searchInput').value = manCode;
-                state.searchTerm = manCode;
-                renderInventory();
-
-                const toast = document.getElementById('qrToast');
-                document.getElementById('qrToastText').textContent = `MAN encontrado: ${existingItem.nome} (${existingItem.codigo})`;
-                toast.classList.remove('hidden');
+                window.stopQRScanner();
+                openQuickAdjustModal(existingItem);
             } else {
-                // Item NÃO existe -> Abre o modal de Cadastro já preenchido com o MAN lido!
-                window.openAddModal();
-                document.getElementById('formCodigo').value = manCode;
-                if (parts[1]) document.getElementById('formNome').value = parts[1];
-                if (parts[2]) document.getElementById('formCategoria').value = parts[2];
-                if (parts[3]) document.getElementById('formSpecs').value = parts[3];
-                if (parts[4]) document.getElementById('formLocal').value = parts[4];
-                setTimeout(() => document.getElementById('formNome').focus(), 150);
+                const dynMatch = state.dynamicsCatalog.find(d => d.man === scannedCode);
+                const box = document.getElementById('qrNotFoundBox');
+                document.getElementById('qrNotFoundTitle').textContent = `O código ${scannedCode} ainda não está no estoque de ${getActiveSectorConfig().title}.`;
+                document.getElementById('qrNotFoundDesc').textContent = dynMatch
+                    ? `Encontrado no Dynamics: "${dynMatch.nome}". Deseja cadastrá-lo agora?`
+                    : `Deseja cadastrar um novo item com o código ${scannedCode}?`;
+
+                document.getElementById('btnRegisterScannedMan').onclick = () => {
+                    window.stopQRScanner();
+                    window.openAddModalWithMan(scannedCode);
+                };
+                box.classList.remove('hidden');
             }
         }
 
-        window.clearQRFilter = () => {
-            document.getElementById('searchInput').value = '';
-            state.searchTerm = '';
-            document.getElementById('qrToast').classList.add('hidden');
-            renderInventory();
+        function openQuickAdjustModal(item) {
+            state.quickAdjustItemId = item.id;
+            document.getElementById('qaManBadge').textContent = item.codigoLimpo || 'SEM-COD';
+            document.getElementById('qaItemName').textContent = item.nome;
+            document.getElementById('qaItemLocal').innerHTML = `<i class="ph-fill ph-map-pin"></i> ${item.localizacao || '-'}`;
+            document.getElementById('qaCurrentQty').textContent = parseInt(item.quantidade) || 0;
+            document.getElementById('qaUnit').textContent = item.unidade || 'un';
+
+            document.getElementById('qaBtnEdit').onclick = () => {
+                window.closeQuickAdjustModal();
+                window.openEditModal(item.id);
+            };
+
+            const modal = document.getElementById('quickAdjustModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        window.closeQuickAdjustModal = () => {
+            state.quickAdjustItemId = null;
+            const modal = document.getElementById('quickAdjustModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         };
 
-        // Geração de Etiqueta QR Code baseada no MAN
+        window.applyQuickAdjust = async (delta) => {
+            if (!state.quickAdjustItemId) return;
+            await window.updateQuantity(state.quickAdjustItemId, delta);
+        };
+
+        window.applyCustomQuickAdjust = async (sign) => {
+            if (!state.quickAdjustItemId) return;
+            const amount = parseInt(document.getElementById('qaCustomAmount').value) || 0;
+            if (amount <= 0) return;
+            await window.updateQuantity(state.quickAdjustItemId, sign * amount);
+        };
+
         window.openQRLabelModal = (id) => {
             const item = state.inventory.find(i => i.id === id);
             if (!item) return;
 
-            const manCode = (item.codigo || item.id).toUpperCase();
+            const cfg = getActiveSectorConfig();
+            const manCode = item.codigoLimpo || `${cfg.codePrefix}-S/N`;
             currentLabelCode = manCode;
 
-            document.getElementById('labelCategoria').textContent = item.categoria || 'GERAL';
+            document.getElementById('labelHeaderSector').textContent = cfg.labelHeader;
+            document.getElementById('labelCategoria').textContent = item.categoria || cfg.title;
             document.getElementById('labelCodigoMan').textContent = manCode;
             document.getElementById('labelNomeItem').textContent = item.nome;
-            document.getElementById('labelSpecsItem').textContent = item.especificacao || 'Sem especificação adicional';
+            document.getElementById('labelSpecsItem').textContent = item.especificacao || '';
             document.getElementById('labelLocalItem').textContent = item.localizacao || '-';
 
             const qrContainer = document.getElementById('qrcodeCanvas');
@@ -916,11 +1548,11 @@
 
             new QRCode(qrContainer, {
                 text: manCode,
-                width: 170,
-                height: 170,
+                width: 165,
+                height: 165,
                 colorDark: "#14532d",
                 colorLight: "#ffffff",
-                correctLevel: QRCode.CorrectLevel.H
+                correctLevel: QRCode.CorrectLevel.M
             });
 
             const modal = document.getElementById('qrLabelModal');
@@ -929,55 +1561,192 @@
         };
 
         window.closeQRLabelModal = () => {
-            const modal = document.getElementById('qrLabelModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
+            document.getElementById('qrLabelModal').classList.add('hidden');
+            document.getElementById('qrLabelModal').classList.remove('flex');
         };
 
         window.downloadQRImage = () => {
             const img = document.querySelector('#qrcodeCanvas img') || document.querySelector('#qrcodeCanvas canvas');
             if (!img) return;
             const link = document.createElement('a');
-            link.download = `QR_${currentLabelCode}.png`;
+            link.download = `Etiqueta_${currentLabelCode}.png`;
             link.href = img.src || img.toDataURL("image/png");
             link.click();
         };
 
-        // 4. CRUD COM LOG DE AUDITORIA
+        // ===================================================================
+        // 7. CRUD MULTI-SETOR E INTEGRAÇÃO DYNAMICS
+        // ===================================================================
         window.updateQuantity = async (id, change) => {
             const item = state.inventory.find(i => i.id === id);
             if (!item) return;
-            const newQty = parseInt(item.quantidade) + change;
-            if (newQty < 0) return; 
+            const newQty = (parseInt(item.quantidade) || 0) + change;
+            if (newQty < 0) return;
 
+            const cfg = getActiveSectorConfig();
             try {
-                await updateDoc(doc(db, "estoque", id), { quantidade: newQty });
-                await addDoc(collection(db, 'historico'), {
-                    itemId: id, nomeItem: item.nome, codigo: item.codigo||'-',
-                    alteracao: change, usuario: state.currentUser.email, data: new Date().toISOString()
+                await updateDoc(doc(db, cfg.stockCollection, id), { quantidade: newQty });
+                await addDoc(collection(db, cfg.logsCollection), {
+                    itemId: id,
+                    nomeItem: item.nome,
+                    codigo: item.codigoLimpo || '-',
+                    alteracao: change,
+                    usuario: state.currentUser.displayName || state.currentUser.email,
+                    data: new Date().toISOString()
                 });
             } catch (error) { console.error(error); }
         };
 
+        function autofillModalFromDynamics(code) {
+            const clean = code.trim().toUpperCase().replace(/\s+/g, '');
+            const match = state.dynamicsCatalog.find(d => d.man === clean);
+            if (match) {
+                document.getElementById('formCodigo').value = match.man;
+                document.getElementById('formNome').value = match.nome;
+                if (match.descricao) document.getElementById('formSpecs').value = match.descricao;
+                document.getElementById('formCategoria').value = guessCategoryFromName(match.nome);
+            }
+        }
+
+        // Gera código curto automático (CAMM001 na Manutenção ou PRD001 na Produção)
+        window.generateProvisionalCode = () => {
+            const prefix = getActiveSectorConfig().codePrefix;
+            let maxNum = 0;
+            const regex = new RegExp(`^${prefix}(\\d+)$`, 'i');
+            state.inventory.forEach(i => {
+                const m = (i.codigoLimpo || '').match(regex);
+                if (m && parseInt(m[1]) > maxNum) maxNum = parseInt(m[1]);
+            });
+            const nextCode = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+            document.getElementById('formCodigo').value = nextCode;
+            document.getElementById('formNome').focus();
+        };
+
         function setupEventListeners() {
-            // Busca Reativa
             document.getElementById('searchInput').addEventListener('input', (e) => {
                 state.searchTerm = e.target.value;
-                if (!e.target.value) document.getElementById('qrToast').classList.add('hidden');
+                document.getElementById('clearSearchBtn').classList.toggle('hidden', !e.target.value);
                 renderInventory();
             });
 
-            // Submit Formulario (Cria/Edita)
+            document.getElementById('formCodigo').addEventListener('blur', (e) => {
+                if (!document.getElementById('formItemId').value && !document.getElementById('formNome').value) {
+                    autofillModalFromDynamics(e.target.value);
+                }
+            });
+
+            document.getElementById('modalDynamicsLookup').addEventListener('input', (e) => {
+                const q = e.target.value.trim().toUpperCase();
+                const drop = document.getElementById('modalDynamicsDropdown');
+                if (q.length < 2 || state.dynamicsCatalog.length === 0) {
+                    drop.classList.add('hidden');
+                    return;
+                }
+                const matches = state.dynamicsCatalog.filter(d => d.man.includes(q.replace(/\s+/g, '')) || d.searchStr.includes(q)).slice(0, 8);
+                if (matches.length === 0) {
+                    drop.innerHTML = `<div class="p-3 text-xs text-stone-400">Nenhum código encontrado com "${q}". Use o botão "Gerar Código Curto" acima.</div>`;
+                } else {
+                    drop.innerHTML = matches.map(m => `
+                        <button type="button" onclick="window.selectDynamicsItemInModal('${m.man}')" class="w-full text-left p-3 hover:bg-biotrop-50 dark:hover:bg-stone-800 flex items-center justify-between gap-2 transition">
+                            <div class="min-w-0">
+                                <span class="font-black text-xs text-biotrop-700 dark:text-biotrop-400 mr-2">${m.man}</span>
+                                <span class="text-xs font-bold text-stone-800 dark:text-white truncate">${m.nome}</span>
+                            </div>
+                            <span class="text-[10px] font-black text-biotrop-600 uppercase shrink-0">Preencher</span>
+                        </button>
+                    `).join('');
+                }
+                drop.classList.remove('hidden');
+            });
+
+            document.getElementById('dynamicsSearchInput').addEventListener('input', (e) => {
+                const q = e.target.value.trim().toUpperCase();
+                const resContainer = document.getElementById('dynamicsSearchResults');
+                if (q.length < 2) {
+                    resContainer.innerHTML = `<p class="text-xs text-stone-400 py-6 text-center">Digite pelo menos 2 caracteres para pesquisar nos ${state.dynamicsCatalog.length.toLocaleString('pt-BR')} itens do Dynamics.</p>`;
+                    return;
+                }
+                const matches = state.dynamicsCatalog.filter(d => d.man.includes(q.replace(/\s+/g, '')) || d.searchStr.includes(q)).slice(0, 25);
+                if (matches.length === 0) {
+                    resContainer.innerHTML = `<p class="text-xs text-stone-400 py-6 text-center">Nenhum item encontrado no catálogo do Dynamics.</p>`;
+                    return;
+                }
+                resContainer.innerHTML = matches.map(m => {
+                    const alreadyInStock = state.inventory.find(i => i.codigoLimpo === m.man);
+                    return `
+                        <div class="py-3 px-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-stone-50 dark:hover:bg-stone-800/40 rounded-xl transition">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-black text-sm text-biotrop-700 dark:text-biotrop-400">${m.man}</span>
+                                    ${alreadyInStock ? `<span class="text-[10px] bg-sky-100 text-sky-700 font-black px-2 py-0.5 rounded">Já no Estoque (${alreadyInStock.quantidade} un)</span>` : ''}
+                                </div>
+                                <p class="text-sm font-bold text-stone-800 dark:text-white mt-0.5">${m.nome}</p>
+                                ${m.descricao ? `<p class="text-xs text-stone-500 line-clamp-1">${m.descricao}</p>` : ''}
+                            </div>
+                            <button onclick="window.openAddModalWithMan('${m.man}')" class="shrink-0 px-4 py-2 bg-biotrop-600 hover:bg-biotrop-500 text-white text-xs font-black rounded-xl shadow-sm transition">
+                                + Cadastrar em ${getActiveSectorConfig().title}
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            });
+
+            document.getElementById('dynamicsExcelInput').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const statusEl = document.getElementById('dynamicsStatusText');
+                statusEl.textContent = "Lendo planilha do Dynamics... Aguarde um instante.";
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const data = new Uint8Array(event.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                        
+                        const catalog = [];
+                        for (const r of rows) {
+                            const rawMan = String(r['Número do item'] || r['MAN'] || r['Código'] || '').trim().toUpperCase().replace(/\s+/g, '');
+                            const nome = String(r['Nome do produto'] || r['Nome'] || '').trim();
+                            if (!rawMan || !nome) continue;
+                            const descricao = String(r['Descrição'] || r['Especificação'] || '').trim();
+                            const parado = String(r['Parado'] || 'Não').trim();
+                            catalog.push({
+                                man: rawMan,
+                                nome,
+                                descricao: descricao === 'undefined' ? '' : descricao,
+                                parado,
+                                searchStr: `${rawMan} ${nome} ${descricao}`.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                            });
+                        }
+
+                        state.dynamicsCatalog = catalog;
+                        await saveDynamicsCatalogToIDB(catalog);
+                        updateDynamicsStatusUI();
+                        renderUnlinkedItems();
+                        alert(`Sucesso! ${catalog.length.toLocaleString('pt-BR')} itens do Dynamics foram salvos na memória do navegador.`);
+                    } catch (err) {
+                        alert("Erro ao processar a planilha.");
+                    } finally {
+                        e.target.value = '';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+
             document.getElementById('addItemForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const btn = document.getElementById('btnSubmitAdd');
                 const origTxt = btn.innerHTML;
-                btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Salvando...'; btn.disabled = true;
+                btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Salvando...';
+                btn.disabled = true;
 
+                const cfg = getActiveSectorConfig();
                 const id = document.getElementById('formItemId').value;
+                const cleanCode = document.getElementById('formCodigo').value.trim().toUpperCase().replace(/\s+/g, '');
                 const dados = {
                     nome: document.getElementById('formNome').value.trim(),
-                    codigo: document.getElementById('formCodigo').value.trim().toUpperCase(),
+                    codigo: cleanCode,
                     categoria: document.getElementById('formCategoria').value,
                     especificacao: document.getElementById('formSpecs').value.trim(),
                     aplicacao: document.getElementById('formAplicacao').value.trim() || '-',
@@ -988,90 +1757,182 @@
                 };
 
                 try {
-                    if(id) {
-                        await updateDoc(doc(db, "estoque", id), dados);
-                        await addDoc(collection(db, 'historico'), { itemId: id, nomeItem: dados.nome, codigo: dados.codigo, alteracao: 0, usuario: state.currentUser.email, data: new Date().toISOString(), nota: "Item Editado" });
+                    const userIdentifier = state.currentUser.displayName || state.currentUser.email;
+                    if (id) {
+                        await updateDoc(doc(db, cfg.stockCollection, id), dados);
+                        await addDoc(collection(db, cfg.logsCollection), { itemId: id, nomeItem: dados.nome, codigo: dados.codigo, alteracao: 0, usuario: userIdentifier, data: new Date().toISOString(), nota: "Ficha Editada" });
                     } else {
-                        const docRef = await addDoc(collection(db, 'estoque'), dados);
-                        await addDoc(collection(db, 'historico'), { itemId: docRef.id, nomeItem: dados.nome, codigo: dados.codigo, alteracao: dados.quantidade, usuario: state.currentUser.email, data: new Date().toISOString(), nota: "Item Criado" });
+                        const docRef = await addDoc(collection(db, cfg.stockCollection), dados);
+                        await addDoc(collection(db, cfg.logsCollection), { itemId: docRef.id, nomeItem: dados.nome, codigo: dados.codigo, alteracao: dados.quantidade, usuario: userIdentifier, data: new Date().toISOString(), nota: "Novo Cadastro" });
                     }
                     window.closeAddModal();
-                } catch (error) { alert("Erro ao salvar"); }
-                finally { btn.innerHTML = origTxt; btn.disabled = false; }
+                } catch (error) {
+                    alert("Erro ao salvar no banco de dados.");
+                } finally {
+                    btn.innerHTML = origTxt;
+                    btn.disabled = false;
+                }
             });
 
-            // Confirmar Exclusão
             document.getElementById('btnConfirmDelete').addEventListener('click', async () => {
-                if(!itemToDeleteId) return;
+                if (!itemToDeleteId) return;
+                const cfg = getActiveSectorConfig();
                 const btn = document.getElementById('btnConfirmDelete');
-                btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Excluindo...'; btn.disabled = true;
+                btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Excluindo...';
+                btn.disabled = true;
                 try {
                     const item = state.inventory.find(i => i.id === itemToDeleteId);
-                    await deleteDoc(doc(db, "estoque", itemToDeleteId));
-                    await addDoc(collection(db, 'historico'), { itemId: itemToDeleteId, nomeItem: item?.nome||'Deletado', codigo: item?.codigo||'-', alteracao: 0, usuario: state.currentUser.email, data: new Date().toISOString(), nota: "Item Excluído" });
+                    await deleteDoc(doc(db, cfg.stockCollection, itemToDeleteId));
+                    await addDoc(collection(db, cfg.logsCollection), {
+                        itemId: itemToDeleteId,
+                        nomeItem: item?.nome || 'Item Excluído',
+                        codigo: item?.codigoLimpo || '-',
+                        alteracao: 0,
+                        usuario: state.currentUser.displayName || state.currentUser.email,
+                        data: new Date().toISOString(),
+                        nota: "Excluído"
+                    });
                     window.closeDeleteModal();
-                } catch (error) { alert("Erro ao excluir."); }
-                finally { btn.innerHTML = '<i class="ph-bold ph-trash"></i> Excluir'; btn.disabled = false; }
+                } catch (error) {
+                    alert("Erro ao excluir.");
+                } finally {
+                    btn.innerHTML = '<i class="ph-bold ph-trash"></i> Excluir';
+                    btn.disabled = false;
+                }
             });
 
-            // Importação em Lote via Excel
             document.getElementById('excelUpload').addEventListener('change', (e) => {
-                const file = e.target.files[0]; if(!file) return;
+                const file = e.target.files[0];
+                if (!file) return;
+                const cfg = getActiveSectorConfig();
                 const reader = new FileReader();
                 reader.onload = async (event) => {
                     const data = new Uint8Array(event.target.result);
-                    const workbook = XLSX.read(data, {type: 'array'});
+                    const workbook = XLSX.read(data, { type: 'array' });
                     const itemsExcel = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                    if(itemsExcel.length === 0) return alert("Planilha vazia.");
-                    if(!confirm(`Importar ${itemsExcel.length} itens do Excel?`)) return e.target.value = '';
+                    if (itemsExcel.length === 0) return alert("Planilha vazia.");
+
+                    if (itemsExcel.length > 500 && itemsExcel[0]['Número do item']) {
+                        alert("Esta é a planilha geral do Dynamics com 11 mil itens! Carregue-a na aba 'Vincular MANs' para consulta rápida.");
+                        e.target.value = '';
+                        return;
+                    }
+
+                    if (!confirm(`Importar ${itemsExcel.length} itens diretamente para o estoque de ${cfg.title}?`)) return e.target.value = '';
 
                     document.body.style.cursor = 'wait';
                     for (const row of itemsExcel) {
                         try {
-                            await addDoc(collection(db, 'estoque'), {
-                                nome: row['Nome'] || row['NOME'] || 'Sem nome', codigo: String(row['MAN'] || row['Código'] || row['Codigo'] || row['SKU'] || row['PN'] || '-').toUpperCase(), categoria: row['Categoria'] || 'Mecânica', especificacao: row['Especificação'] || row['Especificacao'] || '', aplicacao: row['Aplicação'] || row['Aplicacao'] || '-', localizacao: row['Localização'] || row['Localizacao'] || '-', quantidade: parseInt(row['Quantidade']) || parseInt(row['Qtd Atual']) || 0, quantidadeMinima: parseInt(row['Qtd Mínima']) || parseInt(row['Minima']) || 0, unidade: row['Unidade'] || row['UND'] || 'un'
+                            const rawCode = String(row['MAN'] || row['Código'] || row['Codigo'] || row['SKU'] || row['PN'] || '').trim().toUpperCase().replace(/\s+/g, '');
+                            const nome = row['Nome'] || row['NOME'] || row['Descrição'] || 'Sem nome';
+                            await addDoc(collection(db, cfg.stockCollection), {
+                                nome,
+                                codigo: rawCode || '-',
+                                categoria: row['Categoria'] || guessCategoryFromName(nome),
+                                especificacao: row['Especificação'] || row['Especificacao'] || '',
+                                aplicacao: row['Aplicação'] || row['Aplicacao'] || row['Lote'] || '-',
+                                localizacao: row['Localização'] || row['Localizacao'] || 'A Definir',
+                                quantidade: parseInt(row['Quantidade']) || parseInt(row['Qtd Atual']) || 0,
+                                quantidadeMinima: parseInt(row['Qtd Mínima']) || parseInt(row['Minima']) || 2,
+                                unidade: row['Unidade'] || row['UND'] || 'un'
                             });
-                        } catch(err) { console.error("Linha ignorada"); }
+                        } catch (err) { console.error("Linha ignorada"); }
                     }
-                    document.body.style.cursor = 'default'; alert("Importação finalizada!"); e.target.value = ''; 
+                    document.body.style.cursor = 'default';
+                    alert(`Importação concluída no setor ${cfg.title}!`);
+                    e.target.value = '';
                 };
                 reader.readAsArrayBuffer(file);
             });
         }
 
-        // 5. EXPORTAÇÃO PARA ERP (.XLSX)
-        window.exportToExcel = () => {
-            if(state.inventory.length === 0) return alert("Não há dados.");
-            const dados = state.inventory.map(item => ({
-                "CÓDIGO (MAN/PN)": item.codigo || "-", "DESCRIÇÃO": item.nome, "ESPECIFICAÇÃO": item.especificacao || "-", "CATEGORIA": item.categoria, "APLICAÇÃO": item.aplicacao, "LOCALIZAÇÃO": item.localizacao, "QTD. ATUAL": item.quantidade, "UNIDADE": item.unidade || "un", "QTD. MÍNIMA": item.quantidadeMinima, "STATUS": parseInt(item.quantidade) <= parseInt(item.quantidadeMinima) ? "COMPRAR" : "OK"
-            }));
-            const ws = XLSX.utils.json_to_sheet(dados); const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Inventario_CAMM3");
-            XLSX.writeFile(wb, `Relatorio_Estoque_Biotrop_${new Date().toISOString().split('T')[0]}.xlsx`);
+        window.selectDynamicsItemInModal = (manCode) => {
+            document.getElementById('modalDynamicsDropdown').classList.add('hidden');
+            document.getElementById('modalDynamicsLookup').value = '';
+            autofillModalFromDynamics(manCode);
+            document.getElementById('formLocal').focus();
         };
 
-        // 6. FUNÇÕES DE JANELA (UI/UX)
+        window.openAddModalWithMan = (manCode) => {
+            const existing = state.inventory.find(i => i.codigoLimpo === manCode);
+            if (existing) {
+                window.openEditModal(existing.id);
+                return;
+            }
+            window.openAddModal();
+            document.getElementById('formCodigo').value = manCode;
+            autofillModalFromDynamics(manCode);
+            setTimeout(() => document.getElementById('formLocal').focus(), 150);
+        };
+
+        // 8. EXPORTAÇÃO PARA ERP (.XLSX) POR SETOR
+        window.exportToExcel = () => {
+            if (state.inventory.length === 0) return alert("Não há dados para exportar neste setor.");
+            const cfg = getActiveSectorConfig();
+            const dados = state.inventory.map(item => ({
+                "SETOR": cfg.title,
+                "CÓDIGO": item.codigoLimpo || "SEM-COD",
+                "DESCRIÇÃO DO ITEM": item.nome,
+                "ESPECIFICAÇÃO": item.especificacao || "-",
+                "CATEGORIA": item.categoria,
+                "APLICAÇÃO / LOTE": item.aplicacao,
+                "LOCALIZAÇÃO FÍSICA": item.localizacao,
+                "QTD. ATUAL": item.quantidade,
+                "UNIDADE": item.unidade || "un",
+                "ESTOQUE MÍNIMO": item.quantidadeMinima,
+                "STATUS": parseInt(item.quantidade) <= parseInt(item.quantidadeMinima) ? "REPOR ESTOQUE" : "OK"
+            }));
+            const ws = XLSX.utils.json_to_sheet(dados);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, `Estoque_${cfg.title}`);
+            XLSX.writeFile(wb, `Estoque_${cfg.title}_Biotrop_${new Date().toISOString().split('T')[0]}.xlsx`);
+        };
+
+        // 9. NAVEGAÇÃO E ACESSIBILIDADE
         window.switchTab = (tab) => {
             document.getElementById('viewEstoque').classList.toggle('hidden', tab !== 'estoque');
+            document.getElementById('viewDynamics').classList.toggle('hidden', tab !== 'dynamics');
             document.getElementById('viewDashboard').classList.toggle('hidden', tab !== 'dashboard');
-            document.getElementById('tabEstoque').className = tab === 'estoque' ? "flex-1 md:px-6 py-2 rounded-lg bg-biotrop-700 font-bold text-sm shadow flex justify-center gap-2" : "flex-1 md:px-6 py-2 rounded-lg text-biotrop-100 hover:bg-biotrop-700/50 font-bold text-sm flex justify-center gap-2";
-            document.getElementById('tabDashboard').className = tab === 'dashboard' ? "flex-1 md:px-6 py-2 rounded-lg bg-biotrop-700 font-bold text-sm shadow flex justify-center gap-2" : "flex-1 md:px-6 py-2 rounded-lg text-biotrop-100 hover:bg-biotrop-700/50 font-bold text-sm flex justify-center gap-2";
+
+            const activeCls = "flex-1 md:px-5 py-2 rounded-lg bg-white/20 font-bold text-xs md:text-sm shadow flex items-center justify-center gap-1.5 whitespace-nowrap transition-all";
+            const inactiveCls = "flex-1 md:px-5 py-2 rounded-lg text-white/80 hover:bg-white/10 font-bold text-xs md:text-sm flex items-center justify-center gap-1.5 whitespace-nowrap transition-all";
+
+            document.getElementById('tabEstoque').className = tab === 'estoque' ? activeCls : inactiveCls;
+            document.getElementById('tabDynamics').className = tab === 'dynamics' ? activeCls : inactiveCls;
+            document.getElementById('tabDashboard').className = tab === 'dashboard' ? activeCls : inactiveCls;
+        };
+
+        window.clearSearch = () => {
+            document.getElementById('searchInput').value = '';
+            state.searchTerm = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            renderInventory();
+        };
+
+        window.toggleNoManFilter = () => {
+            state.onlyNoMan = !state.onlyNoMan;
+            const btn = document.getElementById('btnFilterNoMan');
+            btn.className = state.onlyNoMan
+                ? "text-xs font-black px-3.5 py-2 rounded-xl border-2 border-amber-500 bg-amber-100 text-amber-900 flex items-center gap-1.5 transition shadow-sm"
+                : "text-xs font-bold px-3.5 py-2 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-dark-card text-stone-600 dark:text-stone-300 hover:border-amber-500 flex items-center gap-1.5 transition";
+            renderInventory();
         };
 
         window.toggleCategory = (cat) => {
             state.activeCategory = (state.activeCategory === cat) ? null : cat;
             document.getElementById('clearCategoryBtn').classList.toggle('hidden', !state.activeCategory);
-            renderCategories(); renderInventory();
-        };
-
-        window.setViewMode = (mode) => {
-            state.viewMode = mode; localStorage.setItem('viewMode', mode);
-            document.getElementById('btnGrid').className = mode === 'grid' ? "px-4 rounded-xl bg-white dark:bg-stone-600 shadow text-biotrop-700 dark:text-white transition h-full" : "px-4 rounded-xl text-stone-500 hover:text-stone-800 dark:text-stone-400 transition h-full";
-            document.getElementById('btnList').className = mode === 'list' ? "px-4 rounded-xl bg-white dark:bg-stone-600 shadow text-biotrop-700 dark:text-white transition h-full" : "px-4 rounded-xl text-stone-500 hover:text-stone-800 dark:text-stone-400 transition h-full";
+            renderCategories();
             renderInventory();
         };
 
-        // Acessibilidade (Settings)
+        window.setViewMode = (mode) => {
+            state.viewMode = mode;
+            localStorage.setItem('viewMode', mode);
+            document.getElementById('btnGrid').className = mode === 'grid' ? "px-3.5 rounded-xl bg-white dark:bg-stone-600 shadow text-biotrop-700 dark:text-white transition h-full" : "px-3.5 rounded-xl text-stone-500 hover:text-stone-800 dark:text-stone-400 transition h-full";
+            document.getElementById('btnList').className = mode === 'list' ? "px-3.5 rounded-xl bg-white dark:bg-stone-600 shadow text-biotrop-700 dark:text-white transition h-full" : "px-3.5 rounded-xl text-stone-500 hover:text-stone-800 dark:text-stone-400 transition h-full";
+            renderInventory();
+        };
+
         window.openSettingsMenu = () => { document.getElementById('settingsMenu').classList.remove('hidden'); document.getElementById('settingsMenu').classList.add('flex'); };
         window.closeSettingsMenu = () => document.getElementById('settingsMenu').classList.add('hidden');
         window.setTheme = (theme) => { theme === 'dark' ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark'); localStorage.setItem('theme', theme); };
@@ -1079,37 +1940,56 @@
         window.setCustomBg = (color) => { document.documentElement.style.setProperty('--app-bg-color', color); document.documentElement.classList.remove('dark'); };
         window.resetBg = () => { document.documentElement.style.removeProperty('--app-bg-color'); if(localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark'); };
 
-        // Modais de CRUD
         window.openAddModal = () => {
-            document.getElementById('addItemForm').reset(); document.getElementById('formItemId').value = "";
-            document.getElementById('modalTitleText').innerHTML = '<i class="ph ph-cube"></i> Cadastrar Componente';
-            document.getElementById('addModal').classList.remove('hidden'); document.getElementById('addModal').classList.add('flex');
+            const cfg = getActiveSectorConfig();
+            document.getElementById('addItemForm').reset();
+            document.getElementById('formItemId').value = "";
+            document.getElementById('modalDynamicsLookup').value = "";
+            document.getElementById('modalDynamicsDropdown').classList.add('hidden');
+            document.getElementById('modalTitleText').innerHTML = `<i class="ph ph-cube"></i> Cadastrar em ${cfg.title}`;
+            document.getElementById('addModal').classList.remove('hidden');
+            document.getElementById('addModal').classList.add('flex');
             setTimeout(() => document.getElementById('formCodigo').focus(), 100);
         };
+
         window.openEditModal = (id) => {
-            const item = state.inventory.find(i => i.id === id); if (!item) return;
+            const item = state.inventory.find(i => i.id === id);
+            if (!item) return;
+            const cfg = getActiveSectorConfig();
             document.getElementById('formItemId').value = id;
-            document.getElementById('formNome').value = item.nome; document.getElementById('formCodigo').value = item.codigo;
-            document.getElementById('formCategoria').value = item.categoria; document.getElementById('formSpecs').value = item.especificacao || '';
-            document.getElementById('formAplicacao').value = item.aplicacao !== '-' ? item.aplicacao : ''; document.getElementById('formLocal').value = item.localizacao;
-            document.getElementById('formQty').value = item.quantidade; document.getElementById('formMinQty').value = item.quantidadeMinima; document.getElementById('formUnidade').value = item.unidade || 'un';
-            document.getElementById('modalTitleText').innerHTML = '<i class="ph ph-pencil-simple"></i> Editar Componente';
-            document.getElementById('addModal').classList.remove('hidden'); document.getElementById('addModal').classList.add('flex');
+            document.getElementById('formNome').value = item.nome || '';
+            document.getElementById('formCodigo').value = item.codigoLimpo || '';
+            document.getElementById('formCategoria').value = item.categoria || Object.keys(cfg.categories)[0];
+            document.getElementById('formSpecs').value = item.especificacao || '';
+            document.getElementById('formAplicacao').value = item.aplicacao !== '-' ? (item.aplicacao || '') : '';
+            document.getElementById('formLocal').value = item.localizacao || '';
+            document.getElementById('formQty').value = item.quantidade ?? 0;
+            document.getElementById('formMinQty').value = item.quantidadeMinima ?? 2;
+            document.getElementById('formUnidade').value = item.unidade || 'un';
+            document.getElementById('modalDynamicsDropdown').classList.add('hidden');
+            document.getElementById('modalTitleText').innerHTML = `<i class="ph ph-pencil-simple"></i> Editar Item (${cfg.title})`;
+            document.getElementById('addModal').classList.remove('hidden');
+            document.getElementById('addModal').classList.add('flex');
         };
+
         window.closeAddModal = () => document.getElementById('addModal').classList.add('hidden');
         
         window.openDeleteModal = (id, nome) => {
-            itemToDeleteId = id; document.getElementById('deleteItemName').textContent = nome;
-            const m = document.getElementById('deleteModal'); m.classList.remove('hidden'); m.classList.add('flex');
+            itemToDeleteId = id;
+            document.getElementById('deleteItemName').textContent = nome;
+            const m = document.getElementById('deleteModal');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
         };
         window.closeDeleteModal = () => { itemToDeleteId = null; document.getElementById('deleteModal').classList.add('hidden'); };
 
+        // Inicializa o visual do seletor na tela de login
+        window.selectSector(state.sector);
     </script>
     
-    <!-- REGISTRO DO SERVICE WORKER (Para PWA funcionar Offline) -->
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(err => console.log('SW', err)); });
+            window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
         }
     </script>
 </body>
